@@ -13,3 +13,25 @@ add_executable(${PROJECT_NAME} main.cpp)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_MODULE_STD ON)
+
+# DPDK
+
+find_package(PkgConfig REQUIRED)
+
+set(DPDK_INSTALL_DIR "${CMAKE_BINARY_DIR}/externals/dpdk-install")
+
+file(GLOB_RECURSE PC_FILE "${DPDK_INSTALL_DIR}/*/libdpdk.pc")
+
+if(NOT PC_FILE)
+    message(FATAL_ERROR
+        "DPDK not built. Run: bash scripts/build_dpdk.sh"
+    )
+endif()
+
+get_filename_component(DPDK_PKGCONFIG_DIR "${PC_FILE}" DIRECTORY)
+set(ENV{PKG_CONFIG_PATH} "${DPDK_PKGCONFIG_DIR}")
+pkg_check_modules(DPDK REQUIRED IMPORTED_TARGET libdpdk)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::DPDK)
+target_include_directories(${PROJECT_NAME} PRIVATE ${DPDK_INCLUDE_DIRS})
+
