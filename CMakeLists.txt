@@ -9,7 +9,19 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME})
+
+target_sources(${PROJECT_NAME}
+    PUBLIC
+        FILE_SET CXX_MODULES FILES
+            src/dpdk/eal.cppm
+            src/dpdk/mempool.cppm
+            src/dpdk/packet.cppm
+            src/dpdk/ethdev.cppm
+            src/dpdk/dpdk.cppm
+    PRIVATE
+        main.cpp
+)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_MODULE_STD ON)
