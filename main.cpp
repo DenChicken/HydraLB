@@ -1,5 +1,3 @@
 import std;
 
-int main()
-{
-}
+int main() {}
