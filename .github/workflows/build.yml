@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Deps
+      run: |
+        chmod +x scripts/install_deps_ubuntu.sh
+        sudo ./scripts/install_deps_ubuntu.sh
+
+    - uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '4.2.0'
+
+    - name: Cache Externals
+      id: cache-ext
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/externals/dpdk-build
+          build/externals/dpdk-install
+        key: ${{ runner.os }}-dpdk-v24.11-${{ hashFiles('externals/dpdk/.git') }}
+
+    - name: Build Externals
+      if: steps.cache-ext.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p build/externals
+        chmod +x scripts/build_dpdk.sh
+        bash scripts/build_dpdk.sh
+
+    - name: Build
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
+        cmake --build .
