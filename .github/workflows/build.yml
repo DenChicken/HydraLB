@@ -29,7 +29,7 @@ jobs:
         path: |
           build/externals/dpdk-build
           build/externals/dpdk-install
-        key: ${{ runner.os }}-dpdk-v24.11-${{ hashFiles('externals/dpdk/.git') }}
+        key: ${{ runner.os }}-dpdk-v24.11-${{ hashFiles('externals/dpdk/.git') }}-gcc15
 
     - name: Build Externals
       if: steps.cache-ext.outputs.cache-hit != 'true'

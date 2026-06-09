@@ -8,10 +8,15 @@ fi
 
 echo "INFO: Updating package lists..."
 apt-get update
+apt-get install -y software-properties-common
+add-apt-repository -y ppa:ubuntu-toolchain-r/test
+apt-get update
 
 echo "INFO: Installing development tools and dependencies..."
 apt-get install -y \
     build-essential \
+    gcc-15 \
+    g++-15 \
     git \
     cmake \
     clang \
