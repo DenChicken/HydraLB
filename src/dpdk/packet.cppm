@@ -21,11 +21,11 @@ struct alignas(8) Packet {
     }
 
     template <typename T>
-    T* data_at(uint32_t offset = 0) const {
+    T* data_at(std::uint32_t offset = 0) const {
         return rte_pktmbuf_mtod_offset(mbuf_, T*, offset);
     }
 
-    bool prepend_headroom(uint16_t size) {
+    bool prepend_headroom(std::uint16_t size) {
         return ::rte_pktmbuf_prepend(mbuf_, size) != nullptr;
     }
 

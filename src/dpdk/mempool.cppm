@@ -25,9 +25,9 @@ public:
 
     static std::expected<Mempool, std::string> create(
         const std::string_view& name,
-        uint32_t num_elements,
-        uint32_t cache_size,
-        uint16_t data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE) {
+        std::uint32_t num_elements,
+        std::uint32_t cache_size,
+        std::uint16_t data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE) {
         ::rte_mempool* pool = ::rte_pktmbuf_pool_create(
             name.data(),
             num_elements,
