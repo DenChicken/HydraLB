@@ -19,6 +19,7 @@ target_sources(${PROJECT_NAME}
         FILE_SET CXX_MODULES FILES
             src/common/config_types.cppm
             src/common/network_types.cppm
+            src/algorithms/maglev.cppm
             src/dpdk/eal.cppm
             src/dpdk/mempool.cppm
             src/dpdk/packet.cppm
