@@ -21,11 +21,11 @@ struct alignas(8) Packet {
     }
 
     template <typename T>
-    T* data_at(const uint32_t& offset = 0) {
-        return reinterpret_cast<T*>(static_cast<char*>(mbuf_->buf_addr) + mbuf_->data_off + offset);
+    T* data_at(uint32_t offset = 0) const {
+        return rte_pktmbuf_mtod_offset(mbuf_, T*, offset);
     }
 
-    bool prepend_headroom(const uint16_t size) {
+    bool prepend_headroom(uint16_t size) {
         return ::rte_pktmbuf_prepend(mbuf_, size) != nullptr;
     }
 
@@ -39,5 +39,11 @@ struct alignas(8) Packet {
 private:
     ::rte_mbuf* mbuf_ = nullptr;
 };
+
+static_assert(
+    sizeof(Packet) == sizeof(::rte_mbuf*),
+    "Packet must be a transparent wrapper over rte_mbuf*");
+
+static_assert(alignof(Packet) == alignof(::rte_mbuf*), "Packet alignment must match rte_mbuf*");
 
 }  // namespace hydralb::dpdk

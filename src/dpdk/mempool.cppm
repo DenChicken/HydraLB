@@ -24,10 +24,17 @@ public:
     }
 
     static std::expected<Mempool, std::string> create(
-        const std::string_view& name, const uint32_t& num_elements, const uint32_t& cache_size,
-        const uint16_t& data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE) {
-        ::rte_mempool* pool = ::rte_pktmbuf_pool_create(name.data(), num_elements, cache_size, 0,
-                                                        data_room_size, SOCKET_ID_ANY);
+        const std::string_view& name,
+        uint32_t num_elements,
+        uint32_t cache_size,
+        uint16_t data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE) {
+        ::rte_mempool* pool = ::rte_pktmbuf_pool_create(
+            name.data(),
+            num_elements,
+            cache_size,
+            0,
+            data_room_size,
+            SOCKET_ID_ANY);
 
         if (!pool) {
             return std::unexpected(std::format("Failed to create mempool: {}", name));

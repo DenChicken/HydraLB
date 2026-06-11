@@ -46,24 +46,54 @@ public:
     }
 
     std::expected<void, std::string> configure(const DeviceConfig& config) {
-        struct ::rte_eth_conf local_port_conf{};
-
-        if (config.enable_rss) {
-            local_port_conf.rxmode.mq_mode = RTE_ETH_MQ_RX_RSS;
-            local_port_conf.rx_adv_conf.rss_conf.rss_key = nullptr;
-            local_port_conf.rx_adv_conf.rss_conf.rss_hf = config.rss_hf;
+        struct ::rte_eth_dev_info dev_info{};
+        int info_ret = ::rte_eth_dev_info_get(static_cast<uint16_t>(id_), &dev_info);
+        if (info_ret < 0) {
+            return std::unexpected(
+                std::format(
+                    "Failed to get device info for port {}: {}",
+                    static_cast<uint16_t>(id_),
+                    info_ret));
         }
 
-        local_port_conf.txmode.offloads = RTE_ETH_TX_OFFLOAD_IPV4_CKSUM |
-                                          RTE_ETH_TX_OFFLOAD_UDP_CKSUM |
-                                          RTE_ETH_TX_OFFLOAD_TCP_CKSUM;
+        struct ::rte_eth_conf local_port_conf{};
+        if (config.enable_rss) {
+            if ((dev_info.rx_offload_capa & RTE_ETH_RX_OFFLOAD_RSS_HASH) == 0) {
+                return std::unexpected(
+                    std::format(
+                        "RSS is requested but not supported by port {}",
+                        static_cast<uint16_t>(id_)));
+            }
+            local_port_conf.rxmode.mq_mode = RTE_ETH_MQ_RX_RSS;
+            local_port_conf.rx_adv_conf.rss_conf.rss_key = nullptr;
+            local_port_conf.rx_adv_conf.rss_conf.rss_hf =
+                config.rss_hf & dev_info.flow_type_rss_offloads;
+        }
 
-        int ret = ::rte_eth_dev_configure(static_cast<uint16_t>(id_), config.rx_queues,
-                                          config.tx_queues, &local_port_conf);
+        const uint64_t requested_tx_offloads =
+            RTE_ETH_TX_OFFLOAD_IPV4_CKSUM | RTE_ETH_TX_OFFLOAD_UDP_CKSUM |
+            RTE_ETH_TX_OFFLOAD_TCP_CKSUM | RTE_ETH_TX_OFFLOAD_OUTER_IPV4_CKSUM;
 
+        local_port_conf.txmode.offloads = requested_tx_offloads & dev_info.tx_offload_capa;
+
+        if ((local_port_conf.txmode.offloads & RTE_ETH_TX_OFFLOAD_IPV4_CKSUM) == 0) {
+            return std::unexpected(
+                std::format(
+                    "Hardware IPv4 TX checksum offload is required but not supported by port {}",
+                    static_cast<uint16_t>(id_)));
+        }
+
+        int ret = ::rte_eth_dev_configure(
+            static_cast<uint16_t>(id_),
+            config.rx_queues,
+            config.tx_queues,
+            &local_port_conf);
         if (ret < 0) {
-            return std::unexpected(std::format("Failed to configure eth device {}: {}",
-                                               static_cast<uint16_t>(id_), ret));
+            return std::unexpected(
+                std::format(
+                    "Failed to configure eth device {}: {}",
+                    static_cast<uint16_t>(id_),
+                    ret));
         }
 
         rx_descriptors_ = config.rx_descriptors;
@@ -74,13 +104,20 @@ public:
 
     std::expected<void, std::string> setup_rx_queue(QueueId queue_id, Mempool& pool) {
         int ret = ::rte_eth_rx_queue_setup(
-            static_cast<uint16_t>(id_), static_cast<uint16_t>(queue_id), rx_descriptors_,
-            ::rte_eth_dev_socket_id(static_cast<uint16_t>(id_)), nullptr, pool.raw());
+            static_cast<uint16_t>(id_),
+            static_cast<uint16_t>(queue_id),
+            rx_descriptors_,
+            ::rte_eth_dev_socket_id(static_cast<uint16_t>(id_)),
+            nullptr,
+            pool.raw());
 
         if (ret < 0) {
-            return std::unexpected(std::format("Failed to setup RX queue {} on port {}: {}",
-                                               static_cast<uint16_t>(queue_id),
-                                               static_cast<uint16_t>(id_), ret));
+            return std::unexpected(
+                std::format(
+                    "Failed to setup RX queue {} on port {}: {}",
+                    static_cast<uint16_t>(queue_id),
+                    static_cast<uint16_t>(id_),
+                    ret));
         }
 
         return {};
@@ -88,13 +125,19 @@ public:
 
     std::expected<void, std::string> setup_tx_queue(QueueId queue_id) {
         int ret = ::rte_eth_tx_queue_setup(
-            static_cast<uint16_t>(id_), static_cast<uint16_t>(queue_id), tx_descriptors_,
-            ::rte_eth_dev_socket_id(static_cast<uint16_t>(id_)), nullptr);
+            static_cast<uint16_t>(id_),
+            static_cast<uint16_t>(queue_id),
+            tx_descriptors_,
+            ::rte_eth_dev_socket_id(static_cast<uint16_t>(id_)),
+            nullptr);
 
         if (ret < 0) {
-            return std::unexpected(std::format("Failed to setup TX queue {} on port {}: {}",
-                                               static_cast<uint16_t>(queue_id),
-                                               static_cast<uint16_t>(id_), ret));
+            return std::unexpected(
+                std::format(
+                    "Failed to setup TX queue {} on port {}: {}",
+                    static_cast<uint16_t>(queue_id),
+                    static_cast<uint16_t>(id_),
+                    ret));
         }
 
         return {};
@@ -130,18 +173,20 @@ public:
     CoreQueue(PortId port, QueueId queue) : port_(port), queue_(queue) {}
 
 public:
-    std::size_t rx_burst(std::span<Packet, QUEUE_SIZE_DEFAULT> out_batch) {
-        ::rte_mbuf* raw_mbufs[QUEUE_SIZE_DEFAULT];
-
-        uint16_t received =
-            ::rte_eth_rx_burst(static_cast<uint16_t>(port_), static_cast<uint16_t>(queue_),
-                               raw_mbufs, QUEUE_SIZE_DEFAULT);
-
-        for (uint16_t i = 0; i < received; ++i) {
-            out_batch[i] = Packet(raw_mbufs[i]);
+    std::size_t rx_burst(std::span<Packet> out_batch) {
+        const uint16_t to_receive =
+            static_cast<uint16_t>(std::min(out_batch.size(), QUEUE_SIZE_DEFAULT));
+        if (to_receive == 0) {
+            return 0;
         }
 
-        return received;
+        ::rte_mbuf** raw_mbufs_ptr = reinterpret_cast<::rte_mbuf**>(out_batch.data());
+
+        return ::rte_eth_rx_burst(
+            static_cast<uint16_t>(port_),
+            static_cast<uint16_t>(queue_),
+            raw_mbufs_ptr,
+            to_receive);
     }
 
     std::size_t tx_burst(std::span<Packet> input_batch) {
@@ -153,9 +198,11 @@ public:
             raw_mbufs[i] = input_batch[i].mbuf();
         }
 
-        uint16_t sent =
-            ::rte_eth_tx_burst(static_cast<uint16_t>(port_), static_cast<uint16_t>(queue_),
-                               raw_mbufs, static_cast<uint16_t>(to_send));
+        uint16_t sent = ::rte_eth_tx_burst(
+            static_cast<uint16_t>(port_),
+            static_cast<uint16_t>(queue_),
+            raw_mbufs,
+            static_cast<uint16_t>(to_send));
 
         return sent;
     }
