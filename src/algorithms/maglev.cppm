@@ -36,8 +36,16 @@ public:
         std::span<const config::Backend> backends,
         std::size_t backend_count,
         std::array<std::uint32_t, config::MAGLEV_TABLE_SIZE>& lookup_table) {
-        if (backend_count == 0) {
-            std::fill(lookup_table.begin(), lookup_table.end(), 0);
+        const std::size_t actual_count =
+            std::min({backend_count, backends.size(), config::MAX_BACKENDS});
+
+        const std::size_t alive_count =
+            std::count_if(backends.begin(), backends.begin() + actual_count, [](const auto& b) {
+                return b.status == config::BackendStatus::Alive;
+            });
+
+        if (actual_count == 0 || alive_count == 0) {
+            std::fill(lookup_table.begin(), lookup_table.end(), LOOKUP_INVALID_ID);
             return;
         }
 
@@ -45,7 +53,7 @@ public:
         std::array<std::size_t, config::MAX_BACKENDS> picked_counts{};
         std::fill(picked_counts.begin(), picked_counts.end(), 0);
 
-        for (std::size_t i = 0; i < backend_count; ++i) {
+        for (std::size_t i = 0; i < actual_count; ++i) {
             if (backends[i].status == config::BackendStatus::Dead) {
                 continue;
             }
@@ -65,7 +73,7 @@ public:
         std::size_t filled_slots = 0;
 
         while (filled_slots < config::MAGLEV_TABLE_SIZE) {
-            for (std::size_t i = 0; i < backend_count; ++i) {
+            for (std::size_t i = 0; i < actual_count; ++i) {
                 if (backends[i].status == config::BackendStatus::Dead) {
                     continue;
                 }
