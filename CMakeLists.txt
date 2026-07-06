@@ -25,6 +25,12 @@ target_sources(${PROJECT_NAME}
             src/dpdk/packet.cppm
             src/dpdk/ethdev.cppm
             src/dpdk/dpdk.cppm
+            src/data/pipeline_node.cppm
+            src/data/pipeline.cppm
+            src/data/nodes/pcap_ingress.cppm
+            src/data/nodes/pcap_egress.cppm
+            src/data/nodes/l2_reflector.cppm
+            src/data/data.cppm
     PRIVATE
         main.cpp
 )

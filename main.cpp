@@ -1,5 +1,6 @@
 import std;
 import hydralb.dpdk;
+import hydralb.data;
 
 int main() {
     std::vector<std::string> eal_args = {"HydraLB", "-c", "0xf", "-n", "4"};
@@ -17,6 +18,22 @@ int main() {
     }
 
     std::println("DPDK EAL and Mempool partitions loaded successfully");
+
+    auto pcap_pipeline = hydralb::data::Pipeline{
+        hydralb::data::PcapIngressNode{"input.pcap"},
+        hydralb::data::L2ReflectorNode{},
+        hydralb::data::PcapEgressNode{"output.pcap"},
+    };
+
+    std::array<hydralb::dpdk::Packet, 32> lcore_batch{};
+
+    std::println("Entering static pipeline processing loop...");
+
+    for (int i = 0; i < 5; ++i) {
+        pcap_pipeline.process(lcore_batch);
+    }
+
+    std::println("Pipeline simulation finished successfully. Cleaning up...");
 
     hydralb::dpdk::Eal::cleanup();
 
