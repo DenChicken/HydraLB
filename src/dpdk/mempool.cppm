@@ -15,16 +15,18 @@ public:
 
     Mempool(::rte_mempool* pool) : pool_(pool) {}
 
+public:
     bool is_valid() const {
         return pool_ != nullptr;
     }
 
-    ::rte_mempool* raw() {
+    ::rte_mempool* const raw() {
         return pool_;
     }
 
+public:
     static std::expected<Mempool, std::string> create(
-        const std::string_view& name,
+        const std::string& name,
         std::uint32_t num_elements,
         std::uint32_t cache_size,
         std::uint16_t data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE) {
@@ -40,6 +42,14 @@ public:
             return std::unexpected(std::format("Failed to create mempool: {}", name));
         }
 
+        return Mempool(pool);
+    }
+
+    static std::optional<Mempool> find_by_name(const std::string& name){
+        ::rte_mempool* pool = ::rte_mempool_lookup(name.c_str());
+        if (!pool) {
+            return std::nullopt;
+        }
         return Mempool(pool);
     }
 
