@@ -12,6 +12,10 @@ export namespace hydralb::data {
 
 class L2ReflectorNode {
 public:
+    std::expected<void, std::string> configure() {
+        return {};
+    }
+
     std::span<dpdk::Packet> process(std::span<dpdk::Packet> packets) {
         for (auto& packet : packets) {
             if (!packet.is_valid()) {

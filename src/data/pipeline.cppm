@@ -11,11 +11,22 @@ class Pipeline {
 public:
     constexpr Pipeline(Nodes&&... nodes) : nodes_(std::forward<Nodes>(nodes)...) {}
 
+    constexpr std::expected<void, std::string> configure() {
+        return configure_priv(std::make_index_sequence<sizeof...(Nodes)>{});
+    }
+
     constexpr std::span<dpdk::Packet> process(std::span<dpdk::Packet> packets) {
         return process_priv(packets, std::make_index_sequence<sizeof...(Nodes)>{});
     }
 
 private:
+    template <std::size_t... Is>
+    constexpr std::expected<void, std::string> configure_priv(std::index_sequence<Is...>) {
+        std::expected<void, std::string> result;
+        ((result = result ? std::get<Is>(nodes_).configure() : result), ...);
+        return result;
+    }
+
     template <std::size_t... Is>
     constexpr std::span<dpdk::Packet> process_priv(
         std::span<dpdk::Packet> packets,

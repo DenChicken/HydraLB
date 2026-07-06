@@ -27,6 +27,12 @@ int main() {
 
     std::array<hydralb::dpdk::Packet, 32> lcore_batch{};
 
+    auto configure_ok = pcap_pipeline.configure();
+    if (!configure_ok) {
+        std::println(std::cerr, "Error: {}", configure_ok.error());
+        return 1;
+    }
+
     std::println("Entering static pipeline processing loop...");
 
     for (int i = 0; i < 5; ++i) {

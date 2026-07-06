@@ -45,7 +45,7 @@ public:
         return Mempool(pool);
     }
 
-    static std::optional<Mempool> find_by_name(const std::string& name){
+    static std::optional<Mempool> find_by_name(const std::string& name) {
         ::rte_mempool* pool = ::rte_mempool_lookup(name.c_str());
         if (!pool) {
             return std::nullopt;
