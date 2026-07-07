@@ -61,6 +61,8 @@ public:
         config.rx_queues = PCAP_INGRESS_RX_QUEUES;
         config.tx_queues = PCAP_INGRESS_TX_QUEUES;
         config.enable_rss = false;
+        config.enable_hw_rx_cksum = false;
+        config.enable_hw_tx_cksum = false;
 
         auto configure_res = device_.configure(config);
         if (!configure_res) {
@@ -82,7 +84,12 @@ public:
             return std::unexpected(start_res.error());
         }
 
-        queue_ = dpdk::CoreQueue{*port_res, PCAP_INGRESS_QUEUE_ID};
+        dpdk::QueueConfig q_config{};
+        q_config.port_id = *port_res;
+        q_config.queue_id = PCAP_INGRESS_QUEUE_ID;
+        q_config.enable_hw_tx_cksums = false;
+
+        queue_ = dpdk::CoreQueue{q_config};
 
         return {};
     }
