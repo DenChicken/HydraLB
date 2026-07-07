@@ -3,7 +3,7 @@ import hydralb.dpdk;
 import hydralb.data;
 
 int main() {
-    std::vector<std::string> eal_args = {"HydraLB", "-c", "0xf", "-n", "4"};
+    std::vector<std::string> eal_args = {"HydraLB", "-c", "0xf", "-n", "4", "--no-huge"};
 
     auto init_ok = hydralb::dpdk::Eal::init(eal_args);
     if (!init_ok) {

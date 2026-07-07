@@ -27,6 +27,7 @@ apt-get install -y \
     python3-pip \
     python3-pyelftools \
     libnuma-dev \
-    clang-format
+    clang-format \
+    libpcap-dev
 
 echo "INFO: Requirements installation complete."

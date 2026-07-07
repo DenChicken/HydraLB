@@ -23,7 +23,7 @@ meson setup "${DPDK_BUILD}" \
     --prefix="${DPDK_INSTALL}" \
     --buildtype=release \
     -Dplatform=native \
-    -Denable_drivers="net,common" \
+    -Denable_drivers="net,common,net/pcap" \
     -Denable_docs=false \
     -Dtests=false
 
