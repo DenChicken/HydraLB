@@ -1,45 +1,65 @@
 import std;
 import hydralb.dpdk;
 import hydralb.data;
+import hydralb.common.app_config;
+
+namespace {
+
+using namespace hydralb::config;
+
+const std::string MBUF_POOL_NAME = "HYDRALB_MBUF_POOL";
+
+AppConfig make_app_config() {
+    AppConfig config;
+
+    config.profile.mode = PipelineMode::PcapReflect;  // PcapPassthrough
+
+    config.environment.eal_args = {"HydraLB", "-c", "0xf", "-n", "4", "--no-huge"};
+
+    config.memory.mempools = {
+        MempoolConfig{
+            .name = MBUF_POOL_NAME,
+            .num_elements = 8191,
+            .cache_size = 256,
+            .socket_id = -1,
+        },
+    };
+
+    config.threading.worker_lcores = {1};
+
+    config.nodes.pcap_ingress = {.filename = "input.pcap", .mempool_name = MBUF_POOL_NAME};
+    config.nodes.pcap_egress = {.filename = "output.pcap"};
+    config.nodes.l2_reflector = {.enabled = true};
+
+    return config;
+}
+
+}  // namespace
 
 int main() {
-    std::vector<std::string> eal_args = {"HydraLB", "-c", "0xf", "-n", "4", "--no-huge"};
+    const AppConfig config = make_app_config();
 
-    auto init_ok = hydralb::dpdk::Eal::init(eal_args);
+    auto init_ok = hydralb::dpdk::Eal::init(config.environment.eal_args);
     if (!init_ok) {
         std::println(std::cerr, "Error: {}", init_ok.error());
         return 1;
     }
 
-    auto mempool_res = hydralb::dpdk::Mempool::create("HYDRALB_MBUF_POOL", 8191, 256);
-    if (!mempool_res) {
-        std::println(std::cerr, "Error: {}", mempool_res.error());
+    auto memory_ok = hydralb::data::setup_memory(config.memory);
+    if (!memory_ok) {
+        std::println(std::cerr, "Error: {}", memory_ok.error());
         return 1;
     }
 
     std::println("DPDK EAL and Mempool partitions loaded successfully");
 
-    auto pcap_pipeline = hydralb::data::Pipeline{
-        hydralb::data::PcapIngressNode{"input.pcap"},
-        hydralb::data::L2ReflectorNode{},
-        hydralb::data::PcapEgressNode{"output.pcap"},
-    };
-
-    std::array<hydralb::dpdk::Packet, 32> lcore_batch{};
-
-    auto configure_ok = pcap_pipeline.configure();
-    if (!configure_ok) {
-        std::println(std::cerr, "Error: {}", configure_ok.error());
+    auto run_ok = hydralb::data::Dispatcher::run(config);
+    if (!run_ok) {
+        std::println(std::cerr, "Error: {}", run_ok.error());
         return 1;
     }
 
-    std::println("Entering static pipeline processing loop...");
-
-    for (int i = 0; i < 5; ++i) {
-        pcap_pipeline.process(lcore_batch);
-    }
-
-    std::println("Pipeline simulation finished successfully. Cleaning up...");
+    std::println("Pipeline finished. Cleaning up...");
 
     hydralb::dpdk::Eal::cleanup();
 

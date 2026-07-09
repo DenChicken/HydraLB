@@ -6,6 +6,7 @@ module;
 export module hydralb.data:pcap_ingress;
 
 import :pipeline_node;
+import hydralb.common.app_config;
 import hydralb.dpdk;
 import std;
 
@@ -13,8 +14,6 @@ namespace hydralb::data {
 
 constexpr std::string_view PCAP_INGRESS_DEVICE_NAME = "net_pcap_ingress";
 constexpr std::string_view PCAP_INGRESS_RX_ARG_KEY = "rx_pcap";
-
-constexpr std::string_view PCAP_INGRESS_MEMPOOL_NAME = "HYDRALB_MBUF_POOL";
 
 constexpr dpdk::QueueId PCAP_INGRESS_QUEUE_ID = static_cast<dpdk::QueueId>(0);
 constexpr std::uint16_t PCAP_INGRESS_RX_QUEUES = 1;
@@ -35,7 +34,8 @@ export namespace hydralb::data {
 
 class PcapIngressNode {
 public:
-    PcapIngressNode(const std::string& filename) : filename_(filename) {}
+    PcapIngressNode(const config::PcapIngressConfig& config)
+        : filename_(config.filename), mempool_name_(config.mempool_name) {}
 
     std::expected<void, std::string> configure() {
         std::string vdev_args = std::format("{}={}", PCAP_INGRESS_RX_ARG_KEY, filename_);
@@ -69,9 +69,9 @@ public:
             return std::unexpected(configure_res.error());
         }
 
-        auto mempool_res = dpdk::Mempool::find_by_name(std::string(PCAP_INGRESS_MEMPOOL_NAME));
+        auto mempool_res = dpdk::Mempool::find_by_name(mempool_name_);
         if (!mempool_res) {
-            return std::unexpected(std::format("Mempool not found: {}", PCAP_INGRESS_MEMPOOL_NAME));
+            return std::unexpected(std::format("Mempool not found: {}", mempool_name_));
         }
 
         auto rx_setup_res = device_.setup_rx_queue(PCAP_INGRESS_QUEUE_ID, *mempool_res);
@@ -101,6 +101,7 @@ public:
 
 private:
     std::string filename_;
+    std::string mempool_name_;
     dpdk::Device device_;
     dpdk::CoreQueue queue_;
 };

@@ -29,6 +29,7 @@ public:
         const std::string& name,
         std::uint32_t num_elements,
         std::uint32_t cache_size,
+        std::int32_t socket_id = SOCKET_ID_ANY,
         std::uint16_t data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE) {
         ::rte_mempool* pool = ::rte_pktmbuf_pool_create(
             name.data(),
@@ -36,7 +37,7 @@ public:
             cache_size,
             0,
             data_room_size,
-            SOCKET_ID_ANY);
+            socket_id);
 
         if (!pool) {
             return std::unexpected(std::format("Failed to create mempool: {}", name));

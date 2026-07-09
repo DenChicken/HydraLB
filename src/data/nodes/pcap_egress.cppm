@@ -6,6 +6,7 @@ module;
 export module hydralb.data:pcap_egress;
 
 import :pipeline_node;
+import hydralb.common.app_config;
 import hydralb.dpdk;
 import std;
 
@@ -33,7 +34,7 @@ export namespace hydralb::data {
 
 class PcapEgressNode {
 public:
-    PcapEgressNode(const std::string& filename) : filename_(filename) {}
+    PcapEgressNode(const config::PcapEgressConfig& config) : filename_(config.filename) {}
 
     std::expected<void, std::string> configure() {
         std::string vdev_args = std::format("{}={}", PCAP_EGRESS_TX_ARG_KEY, filename_);

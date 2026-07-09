@@ -5,3 +5,5 @@ export import :pipeline;
 export import :pcap_ingress;
 export import :pcap_egress;
 export import :l2_reflector;
+export import :bootstrap;
+export import :dispatcher;

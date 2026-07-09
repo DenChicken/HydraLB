@@ -19,6 +19,7 @@ target_sources(${PROJECT_NAME}
         FILE_SET CXX_MODULES FILES
             src/common/config_types.cppm
             src/common/network_types.cppm
+            src/common/app_config.cppm
             src/algorithms/maglev.cppm
             src/dpdk/eal.cppm
             src/dpdk/mempool.cppm
@@ -30,6 +31,8 @@ target_sources(${PROJECT_NAME}
             src/data/nodes/pcap_ingress.cppm
             src/data/nodes/pcap_egress.cppm
             src/data/nodes/l2_reflector.cppm
+            src/data/bootstrap.cppm
+            src/data/dispatcher.cppm
             src/data/data.cppm
     PRIVATE
         main.cpp
@@ -58,4 +61,3 @@ pkg_check_modules(DPDK REQUIRED IMPORTED_TARGET libdpdk)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::DPDK)
 target_include_directories(${PROJECT_NAME} PRIVATE ${DPDK_INCLUDE_DIRS})
-
