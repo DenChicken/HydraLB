@@ -1,8 +1,3 @@
-module;
-
-#include <rte_ip.h>
-#include <rte_net.h>
-
 export module hydralb.common.config;
 
 import hydralb.common.network;
