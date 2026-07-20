@@ -17,9 +17,8 @@ add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME}
     PUBLIC
         FILE_SET CXX_MODULES FILES
-            src/common/config_types.cppm
-            src/common/network_types.cppm
-            src/common/app_config.cppm
+            src/common/network.cppm
+            src/common/config.cppm
             src/algorithms/maglev.cppm
             src/dpdk/eal.cppm
             src/dpdk/mempool.cppm
@@ -30,6 +29,9 @@ target_sources(${PROJECT_NAME}
             src/data/pipeline.cppm
             src/data/nodes/pcap_ingress.cppm
             src/data/nodes/pcap_egress.cppm
+            src/data/nodes/parser.cppm
+            src/data/nodes/maglev.cppm
+            src/data/nodes/encap.cppm
             src/data/bootstrap.cppm
             src/data/dispatcher.cppm
             src/data/data.cppm
@@ -39,8 +41,6 @@ target_sources(${PROJECT_NAME}
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_MODULE_STD ON)
-
-# DPDK
 
 find_package(PkgConfig REQUIRED)
 

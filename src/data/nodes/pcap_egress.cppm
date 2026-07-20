@@ -6,7 +6,7 @@ module;
 export module hydralb.data:pcap_egress;
 
 import :pipeline_node;
-import hydralb.common.app_config;
+import hydralb.common.config;
 import hydralb.dpdk;
 import std;
 

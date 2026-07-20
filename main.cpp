@@ -1,7 +1,7 @@
 import std;
 import hydralb.dpdk;
 import hydralb.data;
-import hydralb.common.app_config;
+import hydralb.common.config;
 
 namespace {
 
@@ -12,7 +12,7 @@ const std::string MBUF_POOL_NAME = "HYDRALB_MBUF_POOL";
 AppConfig make_app_config() {
     AppConfig config;
 
-    config.profile.mode = PipelineMode::PcapPassthrough;
+    config.profile.mode = PipelineMode::PcapLoadBalancer;
 
     config.environment.eal_args = {"HydraLB", "-c", "0xf", "-n", "4", "--no-huge"};
 

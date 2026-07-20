@@ -1,6 +1,6 @@
 export module hydralb.data:bootstrap;
 
-import hydralb.common.app_config;
+import hydralb.common.config;
 import hydralb.dpdk;
 import std;
 
