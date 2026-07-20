@@ -42,5 +42,6 @@ jobs:
       run: |
         mkdir -p build
         cd build
+        rm -rf CMakeFiles
         cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
         cmake --build .
