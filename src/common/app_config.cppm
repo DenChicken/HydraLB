@@ -5,7 +5,6 @@ import std;
 export namespace hydralb::config {
 
 enum class PipelineMode : std::uint8_t {
-    PcapReflect,
     PcapPassthrough,
 };
 
@@ -25,18 +24,13 @@ struct PcapEgressConfig {
     std::string filename;
 };
 
-struct L2ReflectorConfig {
-    bool enabled = true;
-};
-
 struct NodeRegistry {
     PcapIngressConfig pcap_ingress;
     PcapEgressConfig pcap_egress;
-    L2ReflectorConfig l2_reflector;
 };
 
 struct Profile {
-    PipelineMode mode = PipelineMode::PcapReflect;
+    PipelineMode mode = PipelineMode::PcapPassthrough;
 };
 
 struct Environment {

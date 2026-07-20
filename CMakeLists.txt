@@ -30,7 +30,6 @@ target_sources(${PROJECT_NAME}
             src/data/pipeline.cppm
             src/data/nodes/pcap_ingress.cppm
             src/data/nodes/pcap_egress.cppm
-            src/data/nodes/l2_reflector.cppm
             src/data/bootstrap.cppm
             src/data/dispatcher.cppm
             src/data/data.cppm

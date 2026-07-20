@@ -12,7 +12,7 @@ const std::string MBUF_POOL_NAME = "HYDRALB_MBUF_POOL";
 AppConfig make_app_config() {
     AppConfig config;
 
-    config.profile.mode = PipelineMode::PcapReflect;  // PcapPassthrough
+    config.profile.mode = PipelineMode::PcapPassthrough;
 
     config.environment.eal_args = {"HydraLB", "-c", "0xf", "-n", "4", "--no-huge"};
 
@@ -29,7 +29,6 @@ AppConfig make_app_config() {
 
     config.nodes.pcap_ingress = {.filename = "input.pcap", .mempool_name = MBUF_POOL_NAME};
     config.nodes.pcap_egress = {.filename = "output.pcap"};
-    config.nodes.l2_reflector = {.enabled = true};
 
     return config;
 }
