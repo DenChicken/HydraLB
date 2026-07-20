@@ -5,7 +5,6 @@ module;
 #include <rte_ip.h>
 #include <rte_mbuf.h>
 #include <rte_net.h>
-#include <rte_sctp.h>
 #include <rte_tcp.h>
 #include <rte_udp.h>
 
@@ -31,11 +30,11 @@ public:
 
     template <typename T>
     T* data_at(std::uint32_t offset = 0) const {
-        return rte_pktmbuf_mtod_offset(mbuf_, T*, offset);
+        return mbuf_ ? rte_pktmbuf_mtod_offset(mbuf_, T*, offset) : nullptr;
     }
 
     bool prepend_headroom(std::uint16_t size) {
-        return ::rte_pktmbuf_prepend(mbuf_, size) != nullptr;
+        return mbuf_ && (::rte_pktmbuf_prepend(mbuf_, size) != nullptr);
     }
 
     void free() {
@@ -76,12 +75,6 @@ public:
             auto* tcp_hdr = reinterpret_cast<struct ::rte_tcp_hdr*>(l4_hdr);
             tcp_hdr->cksum = 0;
             tcp_hdr->cksum = ::rte_ipv4_udptcp_cksum(ip_hdr, l4_hdr);
-        } else if (ptype & RTE_PTYPE_L4_SCTP) {
-            auto* sctp_hdr = reinterpret_cast<struct ::rte_sctp_hdr*>(l4_hdr);
-            sctp_hdr->cksum = 0;
-            std::uint16_t ip_len = rte_be_to_cpu_16(ip_hdr->total_length);
-            std::uint16_t sctp_len = ip_len - hdr_lens.l3_len;
-            sctp_hdr->cksum = rte_cpu_to_be_32(::rte_hash_crc(sctp_hdr, sctp_len, 0xFFFFFFFF));
         }
     }
 
@@ -113,12 +106,6 @@ public:
             auto* tcp_hdr = reinterpret_cast<struct ::rte_tcp_hdr*>(l4_hdr);
             mbuf_->ol_flags |= RTE_MBUF_F_TX_TCP_CKSUM;
             tcp_hdr->cksum = ::rte_ipv4_phdr_cksum(ip_hdr, mbuf_->ol_flags);
-        } else if (ptype & RTE_PTYPE_L4_SCTP) {
-            auto* sctp_hdr = data_at<::rte_sctp_hdr>(hdr_lens.l2_len + hdr_lens.l3_len);
-            if (sctp_hdr) {
-                mbuf_->ol_flags |= RTE_MBUF_F_TX_SCTP_CKSUM;
-                sctp_hdr->cksum = 0;
-            }
         }
     }
 

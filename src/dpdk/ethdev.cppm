@@ -28,7 +28,7 @@ struct DeviceConfig {
     std::uint16_t rx_descriptors = RX_DESCRIPTORS_DEFAULT;
     std::uint16_t tx_descriptors = TX_DESCRIPTORS_DEFAULT;
     bool enable_rss = true;
-    std::uint64_t rss_hf = RTE_ETH_RSS_IP | RTE_ETH_RSS_UDP | RTE_ETH_RSS_TCP | RTE_ETH_RSS_SCTP;
+    std::uint64_t rss_hf = RTE_ETH_RSS_IP | RTE_ETH_RSS_UDP | RTE_ETH_RSS_TCP;
     bool enable_hw_rx_cksum = true;
     bool enable_hw_tx_cksum = true;
 };
