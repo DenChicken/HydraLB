@@ -15,8 +15,8 @@ apt-get update
 echo "INFO: Installing development tools and dependencies..."
 apt-get install -y \
     build-essential \
-    gcc-15 \
-    g++-15 \
+    gcc-16 \
+    g++-16 \
     git \
     cmake \
     clang \

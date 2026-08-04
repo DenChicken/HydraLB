@@ -15,8 +15,8 @@ fi
 
 cd "${DPDK_SRC}"
 
-export CC="gcc-15"
-export CXX="g++-15"
+export CC="gcc-16"
+export CXX="g++-16"
 
 echo "INFO: Configuring DPDK 24.11..."
 meson setup "${DPDK_BUILD}" \
