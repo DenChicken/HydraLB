@@ -13,23 +13,26 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Deps
+    - name: Install System Deps
       run: |
         chmod +x scripts/install_deps_ubuntu.sh
         sudo ./scripts/install_deps_ubuntu.sh
+        sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
 
     - uses: jwlawson/actions-setup-cmake@v2
       with:
         cmake-version: '4.2.0'
 
-    - name: Cache Externals
+    - name: Cache DPDK Externals
       id: cache-ext
       uses: actions/cache@v4
       with:
         path: |
           build/externals/dpdk-build
           build/externals/dpdk-install
-        key: ${{ runner.os }}-dpdk-v24.11-${{ hashFiles('externals/dpdk/.git') }}-gcc15
+        key: ${{ runner.os }}-dpdk-${{ hashFiles('.git/modules/externals/dpdk/HEAD') }}
+        restore-keys: |
+          ${{ runner.os }}-dpdk-
 
     - name: Build Externals
       if: steps.cache-ext.outputs.cache-hit != 'true'
@@ -38,9 +41,7 @@ jobs:
         chmod +x scripts/build_dpdk.sh
         bash scripts/build_dpdk.sh
 
-    - name: Build
+    - name: Configure and Build
       run: |
-        mkdir -p build
-        cd build
-        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
-        cmake --build . --verbose
+        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --parallel $(nproc)

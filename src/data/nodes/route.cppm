@@ -5,7 +5,7 @@ module;
 #include <rte_mbuf.h>
 #include <rte_net.h>
 
-export module hydralb.data:maglev;
+export module hydralb.data:route;
 
 import hydralb.dpdk;
 import hydralb.common.config;
@@ -15,11 +15,11 @@ import std;
 
 export namespace hydralb::data {
 
-class MaglevNode {
+class RouteNode {
     static constexpr std::uint32_t JHASH_INIT_VAL = 0;
 
 public:
-    explicit MaglevNode(const config::RoutingTable* routing_table)
+    explicit RouteNode(const config::RoutingTable* routing_table)
         : routing_table_(routing_table) {}
 
     std::expected<void, std::string> configure() {
