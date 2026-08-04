@@ -9,7 +9,7 @@ import :pipeline;
 import :pcap_ingress;
 import :pcap_egress;
 import :parser;
-import :maglev;
+import :route;
 import :encap;
 import hydralb.common.config;
 import hydralb.dpdk;
@@ -23,7 +23,7 @@ constexpr std::uint32_t LOCAL_TUNNEL_IP = 0x0A000001;
 using PcapPassthroughPipeline = Pipeline<1, PcapIngressNode, PcapEgressNode>;
 
 using PcapLoadBalancerPipeline =
-    Pipeline<1, PcapIngressNode, ParserNode, MaglevNode, EncapNode, PcapEgressNode>;
+    Pipeline<1, PcapIngressNode, ParserNode, RouteNode, EncapNode, PcapEgressNode>;
 
 struct WorkerContext {
     const config::AppConfig* config = nullptr;
@@ -44,7 +44,7 @@ static PcapLoadBalancerPipeline make_pcap_lb_pipeline(
     return PcapLoadBalancerPipeline{
         PcapIngressNode{config.nodes.pcap_ingress},
         ParserNode{},
-        MaglevNode{&rt},
+        RouteNode{&rt},
         EncapNode{&rt, LOCAL_TUNNEL_IP},
         PcapEgressNode{config.nodes.pcap_egress},
     };

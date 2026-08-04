@@ -30,7 +30,7 @@ target_sources(${PROJECT_NAME}
             src/data/nodes/pcap_ingress.cppm
             src/data/nodes/pcap_egress.cppm
             src/data/nodes/parser.cppm
-            src/data/nodes/maglev.cppm
+            src/data/nodes/route.cppm
             src/data/nodes/encap.cppm
             src/data/bootstrap.cppm
             src/data/dispatcher.cppm
