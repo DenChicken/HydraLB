@@ -29,7 +29,7 @@ jobs:
         path: |
           build/externals/dpdk-build
           build/externals/dpdk-install
-        key: ${{ runner.os }}-dpdk-v24.11-${{ hashFiles('externals/dpdk/.git') }}-gcc15
+        key: ${{ runner.os }}-dpdk-v24.11-${{ hashFiles('externals/dpdk/.git') }}
 
     - name: Build Externals
       if: steps.cache-ext.outputs.cache-hit != 'true'
@@ -43,4 +43,5 @@ jobs:
         mkdir -p build
         cd build
         cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
-        cmake --build . --verbose
+        cmake --build .
+
