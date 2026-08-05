@@ -81,6 +81,8 @@ static int worker_entry(void* arg) {
         case hydralb::config::PipelineMode::PcapLoadBalancer:
             hydralb::data::worker_loop(hydralb::data::make_pcap_lb_pipeline(config, rt));
             break;
+        default:
+            break;
     }
 
     return 0;
@@ -101,6 +103,8 @@ public:
             case config::PipelineMode::PcapLoadBalancer:
                 max_workers = PcapLoadBalancerPipeline::max_workers;
                 break;
+            default:
+                return std::unexpected("Invalid profile mode");
         }
 
         const auto& lcores = config.threading.worker_lcores;

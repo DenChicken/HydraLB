@@ -39,8 +39,34 @@ target_sources(${PROJECT_NAME}
         main.cpp
 )
 
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_WARNING_AS_ERROR ON)
+
+target_compile_options(${PROJECT_NAME} PRIVATE
+    $<$<CXX_COMPILER_ID:Clang,AppleClang,GNU>:
+        -Wall
+        -Wextra
+        -Werror
+        -Wunused-variable
+        -Wunused-function
+        -Wunused-value
+        -Wunused-result
+        -Wuninitialized
+        -Wshadow
+        -Wswitch-default
+        -Wswitch-enum
+        -Wformat=2
+        -Wrestrict
+        -Wcast-align
+        -Wold-style-cast
+        -Woverloaded-virtual
+    >
+)
+
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_MODULE_STD ON)
+
+
+# DPDK
 
 find_package(PkgConfig REQUIRED)
 
@@ -59,4 +85,9 @@ set(ENV{PKG_CONFIG_PATH} "${DPDK_PKGCONFIG_DIR}")
 pkg_check_modules(DPDK REQUIRED IMPORTED_TARGET libdpdk)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::DPDK)
-target_include_directories(${PROJECT_NAME} PRIVATE ${DPDK_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${DPDK_INCLUDE_DIRS})
+
+
+# PCAP copy
+
+file(COPY pcap DESTINATION ${CMAKE_BINARY_DIR})

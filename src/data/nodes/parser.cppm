@@ -30,13 +30,9 @@ public:
 
 private:
     bool is_valid(const dpdk::Packet& pkt) const {
-        struct ::rte_net_hdr_lens hdr_lens{};
-        std::uint32_t ptype = ::rte_net_get_ptype(pkt.mbuf(), &hdr_lens, RTE_PTYPE_ALL_MASK);
-
-        bool is_ipv4 = (ptype & RTE_PTYPE_L3_IPV4) != 0;
-        bool is_tcp_or_udp = ((ptype & RTE_PTYPE_L4_TCP) != 0) || ((ptype & RTE_PTYPE_L4_UDP) != 0);
-
-        return is_ipv4 && is_tcp_or_udp;
+        std::ignore = pkt;
+        // TODO
+        return true;
     }
 };
 

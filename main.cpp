@@ -27,7 +27,9 @@ AppConfig make_app_config() {
 
     config.threading.worker_lcores = {1};
 
-    config.nodes.pcap_ingress = {.filename = "input.pcap", .mempool_name = MBUF_POOL_NAME};
+    config.nodes.pcap_ingress = {
+        .filename = "pcap/https-and-dns-to-google.com.pcapng",
+        .mempool_name = MBUF_POOL_NAME};
     config.nodes.pcap_egress = {.filename = "output.pcap"};
 
     return config;

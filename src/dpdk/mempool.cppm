@@ -20,7 +20,7 @@ public:
         return pool_ != nullptr;
     }
 
-    ::rte_mempool* const raw() {
+    ::rte_mempool* raw() {
         return pool_;
     }
 
