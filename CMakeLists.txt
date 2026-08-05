@@ -29,9 +29,7 @@ target_sources(${PROJECT_NAME}
             src/data/pipeline.cppm
             src/data/nodes/pcap_ingress.cppm
             src/data/nodes/pcap_egress.cppm
-            src/data/nodes/parser.cppm
-            src/data/nodes/route.cppm
-            src/data/nodes/encap.cppm
+            src/data/nodes/lb.cppm
             src/data/bootstrap.cppm
             src/data/dispatcher.cppm
             src/data/data.cppm
