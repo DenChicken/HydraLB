@@ -8,9 +8,7 @@ export module hydralb.data:dispatcher;
 import :pipeline;
 import :pcap_ingress;
 import :pcap_egress;
-import :parser;
-import :route;
-import :encap;
+import :lb;
 import hydralb.common.config;
 import hydralb.dpdk;
 import std;
@@ -22,8 +20,7 @@ constexpr std::uint32_t LOCAL_TUNNEL_IP = 0x0A000001;
 
 using PcapPassthroughPipeline = Pipeline<1, PcapIngressNode, PcapEgressNode>;
 
-using PcapLoadBalancerPipeline =
-    Pipeline<1, PcapIngressNode, ParserNode, RouteNode, EncapNode, PcapEgressNode>;
+using PcapLoadBalancerPipeline = Pipeline<1, PcapIngressNode, LBNode, PcapEgressNode>;
 
 struct WorkerContext {
     const config::AppConfig* config = nullptr;
@@ -41,11 +38,18 @@ static PcapPassthroughPipeline make_passthrough_pipeline(const config::AppConfig
 static PcapLoadBalancerPipeline make_pcap_lb_pipeline(
     const config::AppConfig& config,
     const config::RoutingTable& rt) {
+    hydralb::data::LBNode::Config lb_config{
+        .routing_table = &rt,
+        .local_tunnel_ip = hydralb::data::LOCAL_TUNNEL_IP,
+        .enable_parser = true,
+        .enable_routing = true,
+        .enable_encap = true,
+        .enable_stats = true,
+        .lcore_id = static_cast<std::uint32_t>(rte_lcore_id())};
+
     return PcapLoadBalancerPipeline{
         PcapIngressNode{config.nodes.pcap_ingress},
-        ParserNode{},
-        RouteNode{&rt},
-        EncapNode{&rt, LOCAL_TUNNEL_IP},
+        LBNode{lb_config},
         PcapEgressNode{config.nodes.pcap_egress},
     };
 }
