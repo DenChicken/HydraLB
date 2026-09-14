@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      rebuild_externals:
+        description: "Rebuild DPDK from scratch"
+        type: boolean
+        default: false
 
 env:
   DPDK_CACHE_PATHS: |
@@ -25,7 +30,13 @@ jobs:
 
       - name: Resolve DPDK Cache Key
         id: dpdk-sha
-        run: echo "key=${{ runner.os }}-dpdk-$(git rev-parse HEAD:externals/dpdk)" >> "$GITHUB_OUTPUT"
+        run: |
+          suffix=""
+          if [[ "${{ inputs.rebuild_externals }}" == "true" ]]; then
+            suffix="-rebuild-${{ github.run_id }}"
+          fi
+          echo "key=${{ runner.os }}-dpdk-$(git rev-parse HEAD:externals/dpdk)${suffix}" \
+            >> "$GITHUB_OUTPUT"
 
       - name: Restore DPDK Cache
         id: cache-dpdk
