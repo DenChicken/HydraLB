@@ -4,14 +4,14 @@ on:
   push:
   pull_request:
   workflow_dispatch:
-    inputs:
-      rebuild_externals:
-        description: "Rebuild DPDK from scratch"
-        type: boolean
-        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-  DPDK_CACHE_PATHS: |
+  CMAKE_VERSION: '4.2.0'
+  EXTERNALS_PATHS: |
     build/externals/dpdk-build
     build/externals/dpdk-install
 
@@ -21,39 +21,43 @@ jobs:
     runs-on: ubuntu-24.04
 
     outputs:
-      dpdk-key: ${{ steps.dpdk-sha.outputs.key }}
+      cache-key: ${{ steps.key.outputs.value }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - name: Resolve DPDK Cache Key
-        id: dpdk-sha
+      - name: Resolve Externals Cache Key
+        id: key
         run: |
-          suffix=""
-          if [[ "${{ inputs.rebuild_externals }}" == "true" ]]; then
-            suffix="-rebuild-${{ github.run_id }}"
-          fi
-          echo "key=${{ runner.os }}-dpdk-$(git rev-parse HEAD:externals/dpdk)${suffix}" \
-            >> "$GITHUB_OUTPUT"
+          recipe="${{ hashFiles('scripts/build_dpdk.sh') }}"
+          sources="$(git rev-parse HEAD:externals/dpdk)"
+          day="$(date -u +%Y%m%d)"
+          echo "value=${{ runner.os }}-externals-${recipe}-${sources}-${day}" >> "$GITHUB_OUTPUT"
 
-      - name: Restore DPDK Cache
-        id: cache-dpdk
-        uses: actions/cache@v4
+      - name: Restore Externals
+        id: restore
+        uses: actions/cache/restore@v4
         with:
-          path: ${{ env.DPDK_CACHE_PATHS }}
-          key: ${{ steps.dpdk-sha.outputs.key }}
+          path: ${{ env.EXTERNALS_PATHS }}
+          key: ${{ steps.key.outputs.value }}
+          lookup-only: true
 
       - name: Install System Deps
-        if: steps.cache-dpdk.outputs.cache-hit != 'true'
-        run: |
-          sudo bash scripts/install_deps_ubuntu.sh
-          sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+        if: steps.restore.outputs.cache-hit != 'true'
+        run: sudo bash scripts/install_deps_ubuntu.sh
 
       - name: Build DPDK
-        if: steps.cache-dpdk.outputs.cache-hit != 'true'
+        if: steps.restore.outputs.cache-hit != 'true'
         run: bash scripts/build_dpdk.sh
+
+      - name: Save Externals
+        if: steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.EXTERNALS_PATHS }}
+          key: ${{ steps.key.outputs.value }}
 
   build:
     name: Build
@@ -61,30 +65,29 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - name: Restore DPDK Cache
+      - name: Restore Externals
         uses: actions/cache/restore@v4
         with:
-          path: ${{ env.DPDK_CACHE_PATHS }}
-          key: ${{ needs.externals.outputs.dpdk-key }}
+          path: ${{ env.EXTERNALS_PATHS }}
+          key: ${{ needs.externals.outputs.cache-key }}
           fail-on-cache-miss: true
 
       - name: Install System Deps
-        run: |
-          sudo bash scripts/install_deps_ubuntu.sh
-          sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+        run: sudo bash scripts/install_deps_ubuntu.sh
 
       - uses: jwlawson/actions-setup-cmake@v2
         with:
-          cmake-version: '4.2.0'
+          cmake-version: ${{ env.CMAKE_VERSION }}
 
-      - name: Configure and Build
-        run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --parallel $(nproc)
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel "$(nproc)"
 
       - name: Upload Binaries
         uses: actions/upload-artifact@v4
