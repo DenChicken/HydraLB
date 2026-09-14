@@ -19,8 +19,6 @@ import std;
 
 namespace hydralb::data {
 
-constexpr std::uint32_t FLOW_HASH_SEED = 0x12345678;
-
 constexpr std::uint8_t IPV4_IHL_MASK = 0x0F;
 constexpr std::uint8_t IPV4_IHL_MIN = 5;
 constexpr std::uint8_t IPV4_VERSION_IHL_DEFAULT = 0x45;
@@ -124,13 +122,14 @@ struct ParserStage {
 
 struct RouteStage {
     const config::RoutingTable* routing_table = nullptr;
+    std::uint32_t hash_seed = 0;
 
     std::expected<std::uint32_t, DropReason> lookup(const network::FlowKey& key) const {
         if (!routing_table->is_ready.load(std::memory_order_acquire)) {
             return std::unexpected(DropReason::RoutingTableNotReady);
         }
 
-        const std::uint32_t hash = ::rte_jhash(&key, sizeof(key), FLOW_HASH_SEED);
+        const std::uint32_t hash = ::rte_jhash(&key, sizeof(key), hash_seed);
         const std::uint32_t backend_index =
             routing_table->lookup_table[hash % config::MAGLEV_TABLE_SIZE];
 
@@ -223,12 +222,13 @@ public:
     struct Config {
         const config::RoutingTable* routing_table = nullptr;
         std::uint32_t local_tunnel_ip = 0;
+        std::uint32_t flow_hash_seed = 0;
         std::uint32_t lcore_id = 0;
     };
 
     explicit LBNode(const Config& config)
         : config_(config),
-          router_{.routing_table = config.routing_table},
+          router_{.routing_table = config.routing_table, .hash_seed = config.flow_hash_seed},
           encap_{.routing_table = config.routing_table, .local_ip = config.local_tunnel_ip} {}
 
     std::expected<void, std::string> configure() {
@@ -243,6 +243,8 @@ public:
 
         return {};
     }
+
+    void shutdown() {}
 
     std::span<dpdk::Packet> process(std::span<dpdk::Packet> packets) {
         std::size_t forwarded = 0;

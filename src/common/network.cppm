@@ -12,7 +12,6 @@ enum class TransportProtocol : std::uint8_t {
     Unknown,
     TCP = 6,
     UDP = 17,
-    ICMP = 1,
 };
 
 struct FlowKey {

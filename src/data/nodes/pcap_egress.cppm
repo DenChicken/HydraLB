@@ -12,21 +12,11 @@ import std;
 
 namespace hydralb::data {
 
-constexpr std::string_view PCAP_EGRESS_DEVICE_NAME = "net_pcap_egress";
 constexpr std::string_view PCAP_EGRESS_TX_ARG_KEY = "tx_pcap";
 
 constexpr dpdk::QueueId PCAP_EGRESS_QUEUE_ID = static_cast<dpdk::QueueId>(0);
 constexpr std::uint16_t PCAP_EGRESS_RX_QUEUES = 0;
 constexpr std::uint16_t PCAP_EGRESS_TX_QUEUES = 1;
-
-static std::expected<dpdk::PortId, std::string> resolve_port_by_name(const std::string& name) {
-    std::uint16_t port_id = 0;
-    int ret = ::rte_eth_dev_get_port_by_name(name.c_str(), &port_id);
-    if (ret < 0) {
-        return std::unexpected(std::format("Failed to resolve port by name {}: {}", name, ret));
-    }
-    return static_cast<dpdk::PortId>(port_id);
-}
 
 }  // namespace hydralb::data
 
@@ -34,36 +24,37 @@ export namespace hydralb::data {
 
 class PcapEgressNode {
 public:
-    PcapEgressNode(const config::PcapEgressConfig& config) : filename_(config.filename) {}
+    PcapEgressNode(const config::PcapEgressConfig& config)
+        : device_name_(config.device_name), filename_(config.filename) {}
 
     std::expected<void, std::string> configure() {
-        std::string vdev_args = std::format("{}={}", PCAP_EGRESS_TX_ARG_KEY, filename_);
+        const std::string vdev_args = std::format("{}={}", PCAP_EGRESS_TX_ARG_KEY, filename_);
 
         int hotplug_ret = ::rte_eal_hotplug_add(
-            "vdev",
-            std::string(PCAP_EGRESS_DEVICE_NAME).c_str(),
+            std::string(config::VDEV_BUS_NAME).c_str(),
+            device_name_.c_str(),
             vdev_args.c_str());
 
         if (hotplug_ret < 0) {
             return std::unexpected(
-                std::format("Failed to hotplug pcap egress device: {}", hotplug_ret));
+                std::format("Failed to hotplug device {}: {}", device_name_, hotplug_ret));
         }
 
-        auto port_res = resolve_port_by_name(std::string(PCAP_EGRESS_DEVICE_NAME));
+        auto port_res = dpdk::Device::find_by_name(device_name_);
         if (!port_res) {
             return std::unexpected(port_res.error());
         }
 
         device_ = dpdk::Device{*port_res};
 
-        dpdk::DeviceConfig config{};
-        config.rx_queues = PCAP_EGRESS_RX_QUEUES;
-        config.tx_queues = PCAP_EGRESS_TX_QUEUES;
-        config.enable_rss = false;
-        config.enable_hw_rx_cksum = false;
-        config.enable_hw_tx_cksum = false;
+        dpdk::DeviceConfig device_config{};
+        device_config.rx_queues = PCAP_EGRESS_RX_QUEUES;
+        device_config.tx_queues = PCAP_EGRESS_TX_QUEUES;
+        device_config.enable_rss = false;
+        device_config.enable_hw_rx_cksum = false;
+        device_config.enable_hw_tx_cksum = false;
 
-        auto configure_res = device_.configure(config);
+        auto configure_res = device_.configure(device_config);
         if (!configure_res) {
             return std::unexpected(configure_res.error());
         }
@@ -78,29 +69,31 @@ public:
             return std::unexpected(start_res.error());
         }
 
-        dpdk::QueueConfig q_config{};
-        q_config.port_id = *port_res;
-        q_config.queue_id = PCAP_EGRESS_QUEUE_ID;
-        q_config.enable_hw_tx_cksums = false;
-
-        queue_ = dpdk::CoreQueue{q_config};
+        queue_ = dpdk::CoreQueue{
+            dpdk::QueueConfig{.port_id = *port_res, .queue_id = PCAP_EGRESS_QUEUE_ID}};
 
         return {};
     }
 
+    void shutdown() {
+        device_.stop();
+        ::rte_eal_hotplug_remove(std::string(config::VDEV_BUS_NAME).c_str(), device_name_.c_str());
+    }
+
     std::span<dpdk::Packet> process(std::span<dpdk::Packet> packets) {
-        std::size_t sent = queue_.tx_burst(packets);
+        const std::size_t sent = queue_.tx_burst(packets);
 
         for (std::size_t i = sent; i < packets.size(); ++i) {
-            if (packets[i].is_valid()) {
-                packets[i].free();
-            }
+            packets[i].free();
         }
 
         return packets.subspan(0, sent);
     }
 
+    void dump_stats() const {}
+
 private:
+    std::string device_name_;
     std::string filename_;
     dpdk::Device device_;
     dpdk::CoreQueue queue_;

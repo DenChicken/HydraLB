@@ -7,6 +7,7 @@ export module hydralb.dpdk:ethdev;
 
 import :mempool;
 import :packet;
+import hydralb.common.config;
 import std;
 
 export namespace hydralb::dpdk {
@@ -16,8 +17,6 @@ constexpr std::uint16_t TX_QUEUES_DEFAULT = 1;
 
 constexpr std::uint16_t RX_DESCRIPTORS_DEFAULT = 1024;
 constexpr std::uint16_t TX_DESCRIPTORS_DEFAULT = 1024;
-
-constexpr std::size_t QUEUE_SIZE_DEFAULT = 32;
 
 enum class PortId : std::uint16_t { Invalid = 0xFFFF };
 enum class QueueId : std::uint16_t { Invalid = 0xFFFF };
@@ -39,8 +38,13 @@ public:
     Device(PortId id) : id_(id) {}
 
 public:
-    PortId id() const {
-        return id_;
+    static std::expected<PortId, std::string> find_by_name(const std::string& name) {
+        std::uint16_t port_id = 0;
+        int ret = ::rte_eth_dev_get_port_by_name(name.c_str(), &port_id);
+        if (ret < 0) {
+            return std::unexpected(std::format("Failed to resolve port by name {}: {}", name, ret));
+        }
+        return static_cast<PortId>(port_id);
     }
 
     bool is_valid() const {
@@ -178,6 +182,7 @@ public:
     void stop() {
         if (is_valid()) {
             ::rte_eth_dev_stop(static_cast<std::uint16_t>(id_));
+            id_ = PortId::Invalid;
         }
     }
 
@@ -190,7 +195,6 @@ private:
 struct QueueConfig {
     PortId port_id = PortId::Invalid;
     QueueId queue_id = QueueId::Invalid;
-    bool enable_hw_tx_cksums = true;
 };
 
 class CoreQueue {
@@ -201,7 +205,7 @@ public:
 public:
     std::size_t rx_burst(std::span<Packet> out_batch) {
         const std::uint16_t to_receive =
-            static_cast<std::uint16_t>(std::min(out_batch.size(), QUEUE_SIZE_DEFAULT));
+            static_cast<std::uint16_t>(std::min(out_batch.size(), config::BURST_SIZE));
         if (to_receive == 0) {
             return 0;
         }
@@ -220,25 +224,16 @@ public:
             return 0;
         }
 
-        ::rte_mbuf* raw_mbufs[QUEUE_SIZE_DEFAULT];
-        std::size_t to_send = std::min(input_batch.size(), std::size_t(QUEUE_SIZE_DEFAULT));
+        const std::uint16_t to_send =
+            static_cast<std::uint16_t>(std::min(input_batch.size(), config::BURST_SIZE));
 
-        for (std::size_t i = 0; i < to_send; ++i) {
-            if (config_.enable_hw_tx_cksums) {
-                input_batch[i].prepare_hw_cksums();
-            } else {
-                input_batch[i].compute_sw_cksums();
-            }
-            raw_mbufs[i] = input_batch[i].mbuf();
-        }
+        ::rte_mbuf** raw_mbufs_ptr = reinterpret_cast<::rte_mbuf**>(input_batch.data());
 
-        std::uint16_t sent = ::rte_eth_tx_burst(
+        return ::rte_eth_tx_burst(
             static_cast<std::uint16_t>(config_.port_id),
             static_cast<std::uint16_t>(config_.queue_id),
-            raw_mbufs,
-            static_cast<std::uint16_t>(to_send));
-
-        return sent;
+            raw_mbufs_ptr,
+            to_send);
     }
 
 private:

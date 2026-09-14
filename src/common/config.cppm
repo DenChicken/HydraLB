@@ -8,6 +8,10 @@ export namespace hydralb::config {
 constexpr std::size_t MAGLEV_TABLE_SIZE = 65537;
 constexpr std::size_t MAX_BACKENDS = 256;
 
+constexpr std::size_t BURST_SIZE = 32;
+
+constexpr std::string_view VDEV_BUS_NAME = "vdev";
+
 enum class BackendStatus : std::uint8_t { Dead, Alive };
 
 enum class PipelineMode : std::uint8_t { PcapPassthrough, PcapLoadBalancer };
@@ -35,11 +39,13 @@ struct MempoolConfig {
 };
 
 struct PcapIngressConfig {
+    std::string device_name;
     std::string filename;
     std::string mempool_name;
 };
 
 struct PcapEgressConfig {
+    std::string device_name;
     std::string filename;
 };
 
@@ -66,6 +72,8 @@ struct Threading {
 
 struct Balancing {
     std::vector<Backend> backends;
+    network::IPv4Address local_tunnel_ip;
+    std::uint32_t flow_hash_seed = 0;
 };
 
 struct AppConfig {

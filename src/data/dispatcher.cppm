@@ -16,9 +16,6 @@ import std;
 
 namespace hydralb::data {
 
-constexpr std::size_t WORKER_BATCH_SIZE = 32;
-constexpr std::uint32_t LOCAL_TUNNEL_IP = 0x0A000001;
-
 constexpr std::size_t IDLE_BURSTS_BEFORE_STOP = 128;
 
 using PcapPassthroughPipeline = Pipeline<1, PcapIngressNode, PcapEgressNode>;
@@ -42,7 +39,8 @@ static PcapLoadBalancerPipeline make_pcap_lb_pipeline(
     const config::RoutingTable& rt) {
     LBNode::Config lb_config{
         .routing_table = &rt,
-        .local_tunnel_ip = LOCAL_TUNNEL_IP,
+        .local_tunnel_ip = config.balancing.local_tunnel_ip.address,
+        .flow_hash_seed = config.balancing.flow_hash_seed,
         .lcore_id = ::rte_lcore_id()};
 
     return PcapLoadBalancerPipeline{
@@ -60,7 +58,7 @@ static void worker_loop(Pipeline pipeline) {
         return;
     }
 
-    std::array<dpdk::Packet, WORKER_BATCH_SIZE> batch{};
+    std::array<dpdk::Packet, config::BURST_SIZE> batch{};
 
     std::size_t idle_bursts = 0;
 
@@ -73,6 +71,7 @@ static void worker_loop(Pipeline pipeline) {
     }
 
     pipeline.dump_stats();
+    pipeline.shutdown();
 }
 
 }  // namespace hydralb::data
@@ -104,7 +103,9 @@ export namespace hydralb::data {
 
 class Dispatcher {
 public:
-    static std::expected<void, std::string> run(const config::AppConfig& config) {
+    static std::expected<void, std::string> run(
+        const config::AppConfig& config,
+        const config::RoutingTable& routing_table) {
         std::size_t max_workers = 0;
         switch (config.profile.mode) {
             case config::PipelineMode::PcapPassthrough:
@@ -127,13 +128,6 @@ public:
                     "Worker lcore count {} exceeds pipeline max workers {}",
                     lcores.size(),
                     max_workers));
-        }
-
-        static config::RoutingTable routing_table;
-
-        auto routing_ok = setup_routing(config.balancing, routing_table);
-        if (!routing_ok) {
-            return std::unexpected(routing_ok.error());
         }
 
         std::vector<WorkerContext> contexts(lcores.size());

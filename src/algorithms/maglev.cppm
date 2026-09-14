@@ -8,8 +8,8 @@ export namespace hydralb::algorithms {
 constexpr std::uint64_t FNV_SEED = 14695981039346656037ULL;
 constexpr std::uint64_t FNV_PRIME = 1099511628211ULL;
 
-constexpr std::uint64_t MAGIC_SEED_1 = 0x12345678;
-constexpr std::uint64_t MAGIC_SEED_2 = 0x87654321;
+constexpr std::uint64_t OFFSET_SEED = 0xC2B2AE3D27D4EB4F;
+constexpr std::uint64_t SKIP_SEED = 0x9E3779B97F4A7C15;
 
 constexpr std::uint32_t LOOKUP_EMPTY_SLOT = 0xFFFFFFFF;
 
@@ -56,13 +56,15 @@ public:
                 continue;
             }
 
-            std::uint64_t h1 = fnv1a_hash(&backends[i].id, sizeof(backends[i].id), MAGIC_SEED_1);
-            std::uint64_t h2 =
-                fnv1a_hash(&backends[i].ip.address, sizeof(backends[i].ip.address), MAGIC_SEED_2);
+            const std::uint64_t offset_hash =
+                fnv1a_hash(&backends[i].id, sizeof(backends[i].id), OFFSET_SEED);
+            const std::uint64_t skip_hash =
+                fnv1a_hash(&backends[i].ip.address, sizeof(backends[i].ip.address), SKIP_SEED);
 
-            permutations[i].offset = static_cast<std::uint32_t>(h1 % config::MAGLEV_TABLE_SIZE);
+            permutations[i].offset =
+                static_cast<std::uint32_t>(offset_hash % config::MAGLEV_TABLE_SIZE);
             permutations[i].skip =
-                static_cast<std::uint32_t>(h2 % (config::MAGLEV_TABLE_SIZE - 1) + 1);
+                static_cast<std::uint32_t>(skip_hash % (config::MAGLEV_TABLE_SIZE - 1) + 1);
             permutations[i].next_index = 0;
         }
 
