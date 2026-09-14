@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+cd "${PROJECT_ROOT}"
+
+if ! command -v clang-format >/dev/null 2>&1; then
+    echo "ERR: clang-format not found, run scripts/install_deps_ubuntu.sh" >&2
+    exit 1
+fi
+
+bash scripts/clang_format.sh
+
+if ! git diff --quiet; then
+    echo "ERR: clang-format changed files, review and stage them:" >&2
+    git diff --name-only >&2
+    exit 1
+fi
+
+echo "INFO: Format check passed."
