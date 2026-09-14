@@ -22,7 +22,7 @@ echo "INFO: Configuring DPDK 24.11..."
 meson setup "${DPDK_BUILD}" \
     --prefix="${DPDK_INSTALL}" \
     --buildtype=release \
-    -Dplatform=native \
+    -Dplatform=generic \
     -Denable_drivers="net,common,net/pcap" \
     -Denable_docs=false \
     -Dtests=false
