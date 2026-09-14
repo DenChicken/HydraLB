@@ -32,7 +32,6 @@ using PcapLoadBalancerPipeline = Pipeline<1, PcapIngressNode, LBNode, PcapEgress
 struct WorkerContext {
     const config::AppConfig* config = nullptr;
     const config::RoutingTable* routing_table = nullptr;
-    std::size_t worker_index = 0;
 };
 
 static PcapPassthroughPipeline make_passthrough_pipeline(const config::AppConfig& config) {
@@ -45,14 +44,10 @@ static PcapPassthroughPipeline make_passthrough_pipeline(const config::AppConfig
 static PcapLoadBalancerPipeline make_pcap_lb_pipeline(
     const config::AppConfig& config,
     const config::RoutingTable& rt) {
-    hydralb::data::LBNode::Config lb_config{
+    LBNode::Config lb_config{
         .routing_table = &rt,
-        .local_tunnel_ip = hydralb::data::LOCAL_TUNNEL_IP,
-        .enable_parser = true,
-        .enable_routing = true,
-        .enable_encap = true,
-        .enable_stats = true,
-        .lcore_id = static_cast<std::uint32_t>(rte_lcore_id())};
+        .local_tunnel_ip = LOCAL_TUNNEL_IP,
+        .lcore_id = ::rte_lcore_id()};
 
     return PcapLoadBalancerPipeline{
         PcapIngressNode{config.nodes.pcap_ingress},
@@ -80,6 +75,8 @@ static void worker_loop(Pipeline pipeline) {
             idle_bursts = 0;
         }
     }
+
+    pipeline.dump_stats();
 }
 
 }  // namespace hydralb::data
@@ -152,7 +149,7 @@ public:
 
         std::vector<WorkerContext> contexts(lcores.size());
         for (std::size_t i = 0; i < lcores.size(); ++i) {
-            contexts[i] = WorkerContext{&config, &mock_routing_table, i};
+            contexts[i] = WorkerContext{&config, &mock_routing_table};
 
             int launch_ret = ::rte_eal_remote_launch(worker_entry, &contexts[i], lcores[i]);
             if (launch_ret < 0) {

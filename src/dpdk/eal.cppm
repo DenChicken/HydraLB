@@ -4,7 +4,6 @@ module;
 
 export module hydralb.dpdk:eal;
 
-import :packet;
 import std;
 
 export namespace hydralb::dpdk {
@@ -21,11 +20,6 @@ public:
         int parsed_args = ::rte_eal_init(static_cast<int>(c_args.size()), c_args.data());
         if (parsed_args < 0) {
             return std::unexpected(std::format("EAL init failed with code: {}", parsed_args));
-        }
-
-        auto meta_res = Packet::register_metadata_fields();
-        if (!meta_res) {
-            return std::unexpected(meta_res.error());
         }
 
         return parsed_args;
