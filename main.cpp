@@ -26,7 +26,7 @@ constexpr std::uint32_t WORKER_LCORE = 1;
 AppConfig make_app_config() {
     AppConfig config;
 
-    config.profile.mode = PipelineMode::PcapLoadBalancer;
+    config.mode = PipelineMode::PcapLoadBalancer;
 
     config.environment.eal_args = {"HydraLB", "-c", "0xf", "-n", "4", "--no-huge"};
 

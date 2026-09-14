@@ -6,11 +6,9 @@ import std;
 
 export namespace hydralb::data {
 
-template <std::size_t MaxWorkers, PipelineNode... Nodes>
+template <PipelineNode... Nodes>
 class Pipeline {
 public:
-    static constexpr std::size_t max_workers = MaxWorkers;
-
     constexpr Pipeline(Nodes&&... nodes) : nodes_(std::forward<Nodes>(nodes)...) {}
 
     constexpr std::expected<void, std::string> configure() {

@@ -17,10 +17,11 @@ import std;
 namespace hydralb::data {
 
 constexpr std::size_t IDLE_BURSTS_BEFORE_STOP = 128;
+constexpr std::size_t SUPPORTED_WORKERS = 1;
 
-using PcapPassthroughPipeline = Pipeline<1, PcapIngressNode, PcapEgressNode>;
+using PcapPassthroughPipeline = Pipeline<PcapIngressNode, PcapEgressNode>;
 
-using PcapLoadBalancerPipeline = Pipeline<1, PcapIngressNode, LBNode, PcapEgressNode>;
+using PcapLoadBalancerPipeline = Pipeline<PcapIngressNode, LBNode, PcapEgressNode>;
 
 struct WorkerContext {
     const config::AppConfig* config = nullptr;
@@ -83,7 +84,7 @@ static int worker_entry(void* arg) {
     const auto& config = *ctx->config;
     const auto& rt = *ctx->routing_table;
 
-    switch (config.profile.mode) {
+    switch (config.mode) {
         case hydralb::config::PipelineMode::PcapPassthrough:
             hydralb::data::worker_loop(hydralb::data::make_passthrough_pipeline(config));
             break;
@@ -106,28 +107,16 @@ public:
     static std::expected<void, std::string> run(
         const config::AppConfig& config,
         const config::RoutingTable& routing_table) {
-        std::size_t max_workers = 0;
-        switch (config.profile.mode) {
-            case config::PipelineMode::PcapPassthrough:
-                max_workers = PcapPassthroughPipeline::max_workers;
-                break;
-            case config::PipelineMode::PcapLoadBalancer:
-                max_workers = PcapLoadBalancerPipeline::max_workers;
-                break;
-            default:
-                return std::unexpected("Invalid profile mode");
-        }
-
         const auto& lcores = config.threading.worker_lcores;
         if (lcores.empty()) {
             return std::unexpected("No worker lcores configured");
         }
-        if (lcores.size() > max_workers) {
+        if (lcores.size() > SUPPORTED_WORKERS) {
             return std::unexpected(
                 std::format(
-                    "Worker lcore count {} exceeds pipeline max workers {}",
+                    "Worker lcore count {} exceeds supported workers {}",
                     lcores.size(),
-                    max_workers));
+                    SUPPORTED_WORKERS));
         }
 
         std::vector<WorkerContext> contexts(lcores.size());

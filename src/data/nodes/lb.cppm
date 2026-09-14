@@ -35,7 +35,6 @@ enum class DropReason : std::uint8_t {
     RoutingTableNotReady,
     NoBackend,
     BackendDead,
-    EncapNoHeader,
     EncapNoHeadroom,
 };
 
@@ -55,8 +54,6 @@ constexpr std::string_view drop_reason_name(DropReason reason) {
             return "no_backend";
         case DropReason::BackendDead:
             return "backend_dead";
-        case DropReason::EncapNoHeader:
-            return "encap_no_header";
         case DropReason::EncapNoHeadroom:
             return "encap_no_headroom";
         default:
@@ -150,36 +147,22 @@ struct EncapStage {
     std::uint32_t local_ip = 0;
 
     std::array<::rte_ipv4_hdr, config::MAX_BACKENDS> headers{};
-    std::array<bool, config::MAX_BACKENDS> header_valid{};
 
     void rebuild_cache() {
-        header_valid.fill(false);
-
         const std::size_t count = std::min(routing_table->backend_count, config::MAX_BACKENDS);
 
         for (std::size_t i = 0; i < count; ++i) {
-            const auto& backend = routing_table->backends[i];
-            if (backend.status != config::BackendStatus::Alive) {
-                continue;
-            }
-
             auto& hdr = headers[i];
             hdr.version_ihl = IPV4_VERSION_IHL_DEFAULT;
             hdr.time_to_live = IPV4_TTL_DEFAULT;
             hdr.next_proto_id = IPPROTO_IPIP;
             hdr.src_addr = rte_cpu_to_be_32(local_ip);
-            hdr.dst_addr = rte_cpu_to_be_32(backend.ip.address);
-
-            header_valid[i] = true;
+            hdr.dst_addr = rte_cpu_to_be_32(routing_table->backends[i].ip.address);
         }
     }
 
     std::expected<void, DropReason>
     apply(dpdk::Packet& pkt, std::uint32_t backend_index, std::uint16_t l2_len) const {
-        if (!header_valid[backend_index]) {
-            return std::unexpected(DropReason::EncapNoHeader);
-        }
-
         auto* start = pkt.prepend_headroom(sizeof(::rte_ipv4_hdr));
         if (!start) {
             return std::unexpected(DropReason::EncapNoHeadroom);
@@ -202,14 +185,12 @@ struct EncapStage {
 struct Stats {
     std::uint64_t received = 0;
     std::uint64_t forwarded = 0;
+    std::uint64_t dropped = 0;
     std::array<std::uint64_t, DROP_REASON_COUNT> drops{};
 
     void record_drop(DropReason reason) {
+        ++dropped;
         ++drops[std::to_underlying(reason)];
-    }
-
-    std::uint64_t dropped() const {
-        return std::accumulate(drops.begin(), drops.end(), std::uint64_t{0});
     }
 };
 
@@ -269,7 +250,7 @@ public:
         std::println("Core {} stats:", config_.lcore_id);
         std::println("  received:  {}", stats_.received);
         std::println("  forwarded: {}", stats_.forwarded);
-        std::println("  dropped:   {}", stats_.dropped());
+        std::println("  dropped:   {}", stats_.dropped);
 
         for (std::size_t i = 0; i < DROP_REASON_COUNT; ++i) {
             if (stats_.drops[i] != 0) {

@@ -49,13 +49,9 @@ struct PcapEgressConfig {
     std::string filename;
 };
 
-struct NodeRegistry {
+struct Nodes {
     PcapIngressConfig pcap_ingress;
     PcapEgressConfig pcap_egress;
-};
-
-struct Profile {
-    PipelineMode mode = PipelineMode::PcapPassthrough;
 };
 
 struct Environment {
@@ -77,12 +73,12 @@ struct Balancing {
 };
 
 struct AppConfig {
-    Profile profile;
+    PipelineMode mode = PipelineMode::PcapPassthrough;
     Environment environment;
     Memory memory;
     Threading threading;
     Balancing balancing;
-    NodeRegistry nodes;
+    Nodes nodes;
 };
 
 }  // namespace hydralb::config

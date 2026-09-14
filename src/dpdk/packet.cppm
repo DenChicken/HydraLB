@@ -14,10 +14,6 @@ public:
     Packet(::rte_mbuf* m) : mbuf_(m) {}
 
 public:
-    bool is_valid() const {
-        return mbuf_ != nullptr;
-    }
-
     ::rte_mbuf* mbuf() const {
         return mbuf_;
     }

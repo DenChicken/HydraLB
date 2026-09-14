@@ -14,7 +14,7 @@ namespace hydralb::data {
 
 constexpr std::string_view PCAP_INGRESS_RX_ARG_KEY = "rx_pcap";
 
-constexpr dpdk::QueueId PCAP_INGRESS_QUEUE_ID = static_cast<dpdk::QueueId>(0);
+constexpr std::uint16_t PCAP_INGRESS_QUEUE_ID = 0;
 constexpr std::uint16_t PCAP_INGRESS_RX_QUEUES = 1;
 constexpr std::uint16_t PCAP_INGRESS_TX_QUEUES = 0;
 
@@ -49,14 +49,10 @@ public:
 
         device_ = dpdk::Device{*port_res};
 
-        dpdk::DeviceConfig device_config{};
-        device_config.rx_queues = PCAP_INGRESS_RX_QUEUES;
-        device_config.tx_queues = PCAP_INGRESS_TX_QUEUES;
-        device_config.enable_rss = false;
-        device_config.enable_hw_rx_cksum = false;
-        device_config.enable_hw_tx_cksum = false;
-
-        auto configure_res = device_.configure(device_config);
+        auto configure_res = device_.configure(
+            dpdk::DeviceConfig{
+                .rx_queues = PCAP_INGRESS_RX_QUEUES,
+                .tx_queues = PCAP_INGRESS_TX_QUEUES});
         if (!configure_res) {
             return std::unexpected(configure_res.error());
         }
@@ -76,8 +72,7 @@ public:
             return std::unexpected(start_res.error());
         }
 
-        queue_ = dpdk::CoreQueue{
-            dpdk::QueueConfig{.port_id = *port_res, .queue_id = PCAP_INGRESS_QUEUE_ID}};
+        queue_ = dpdk::CoreQueue{*port_res, PCAP_INGRESS_QUEUE_ID};
 
         return {};
     }
