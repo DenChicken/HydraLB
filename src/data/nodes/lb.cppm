@@ -18,6 +18,13 @@ import std;
 
 namespace hydralb::data {
 
+constexpr std::uint32_t FLOW_HASH_SEED = 0x12345678;
+
+constexpr std::uint8_t IPV4_IHL_MASK = 0x0F;
+constexpr std::uint8_t IPV4_IHL_MIN = 5;
+constexpr std::uint8_t IPV4_VERSION_IHL_DEFAULT = 0x45;
+constexpr std::uint8_t IPV4_TTL_DEFAULT = 64;
+
 struct ParserStage {
     static std::expected<network::FlowKey, std::string> parse(const dpdk::Packet& pkt) {
         struct rte_net_hdr_lens hdr_lens;
@@ -32,7 +39,7 @@ struct ParserStage {
             return std::unexpected("Invalid IP header");
         }
 
-        if ((ip_hdr->version_ihl & 0x0F) < 5) {
+        if ((ip_hdr->version_ihl & IPV4_IHL_MASK) < IPV4_IHL_MIN) {
             return std::unexpected("IP header too short");
         }
 
@@ -77,7 +84,7 @@ struct RouteStage {
             return std::unexpected("Routing table not ready");
         }
 
-        std::uint32_t hash = rte_jhash(&key, sizeof(network::FlowKey), 0x12345678);
+        std::uint32_t hash = rte_jhash(&key, sizeof(network::FlowKey), FLOW_HASH_SEED);
         std::uint32_t idx = hash % config::MAGLEV_TABLE_SIZE;
         std::uint32_t backend_id = routing_table->lookup_table[idx];
 
@@ -118,12 +125,12 @@ struct EncapStage {
             }
 
             auto& hdr = precomputed_headers[i];
-            hdr.outer_ip.version_ihl = 0x45;
+            hdr.outer_ip.version_ihl = IPV4_VERSION_IHL_DEFAULT;
             hdr.outer_ip.type_of_service = 0;
             hdr.outer_ip.total_length = 0;
             hdr.outer_ip.packet_id = 0;
             hdr.outer_ip.fragment_offset = 0;
-            hdr.outer_ip.time_to_live = 64;
+            hdr.outer_ip.time_to_live = IPV4_TTL_DEFAULT;
             hdr.outer_ip.next_proto_id = IPPROTO_IPIP;
             hdr.outer_ip.src_addr = local_ip;
             hdr.outer_ip.dst_addr = backend.ip.address;

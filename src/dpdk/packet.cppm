@@ -15,6 +15,8 @@ import std;
 
 export namespace hydralb::dpdk {
 
+constexpr std::uint16_t UDP_CKSUM_ZERO_REPLACEMENT = 0xFFFF;
+
 class alignas(8) Packet {
 public:
     Packet() = default;
@@ -96,7 +98,7 @@ public:
         if (ptype & RTE_PTYPE_L4_UDP) {
             auto* udp_hdr = reinterpret_cast<struct ::rte_udp_hdr*>(l4_hdr);
             std::uint16_t cksum = ::rte_ipv4_udptcp_cksum(ip_hdr, l4_hdr);
-            udp_hdr->dgram_cksum = (cksum == 0) ? 0xFFFF : cksum;
+            udp_hdr->dgram_cksum = (cksum == 0) ? UDP_CKSUM_ZERO_REPLACEMENT : cksum;
         } else if (ptype & RTE_PTYPE_L4_TCP) {
             auto* tcp_hdr = reinterpret_cast<struct ::rte_tcp_hdr*>(l4_hdr);
             tcp_hdr->cksum = 0;
