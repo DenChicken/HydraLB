@@ -101,6 +101,7 @@ get_filename_component(DPDK_PKGCONFIG_DIR "${PC_FILE}" DIRECTORY)
 set(ENV{PKG_CONFIG_PATH} "${DPDK_PKGCONFIG_DIR}")
 pkg_check_modules(DPDK REQUIRED IMPORTED_TARGET libdpdk)
 
+target_link_libraries(hydralb_core PUBLIC PkgConfig::DPDK)
 target_link_libraries(hydralb_data PUBLIC PkgConfig::DPDK)
 target_include_directories(hydralb_data SYSTEM PUBLIC ${DPDK_INCLUDE_DIRS})
 
