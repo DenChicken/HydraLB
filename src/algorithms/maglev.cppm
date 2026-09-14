@@ -11,7 +11,7 @@ constexpr std::uint64_t FNV_PRIME = 1099511628211ULL;
 constexpr std::uint64_t MAGIC_SEED_1 = 0x12345678;
 constexpr std::uint64_t MAGIC_SEED_2 = 0x87654321;
 
-constexpr std::uint64_t LOOKUP_INVALID_ID = 0xFFFFFFFF;
+constexpr std::uint32_t LOOKUP_EMPTY_SLOT = 0xFFFFFFFF;
 
 std::uint64_t fnv1a_hash(const void* data, std::size_t size, std::uint64_t seed = FNV_SEED) {
     const auto* bytes = static_cast<const std::uint8_t*>(data);
@@ -45,7 +45,7 @@ public:
             });
 
         if (actual_count == 0 || alive_count == 0) {
-            std::fill(lookup_table.begin(), lookup_table.end(), LOOKUP_INVALID_ID);
+            std::fill(lookup_table.begin(), lookup_table.end(), LOOKUP_EMPTY_SLOT);
             return;
         }
 
@@ -66,7 +66,7 @@ public:
             permutations[i].next_index = 0;
         }
 
-        std::fill(lookup_table.begin(), lookup_table.end(), LOOKUP_INVALID_ID);
+        std::fill(lookup_table.begin(), lookup_table.end(), LOOKUP_EMPTY_SLOT);
 
         std::size_t filled_slots = 0;
 
@@ -84,8 +84,8 @@ public:
 
                     permutations[i].next_index++;
 
-                    if (lookup_table[candidate_slot] == LOOKUP_INVALID_ID) {
-                        lookup_table[candidate_slot] = backends[i].id;
+                    if (lookup_table[candidate_slot] == LOOKUP_EMPTY_SLOT) {
+                        lookup_table[candidate_slot] = static_cast<std::uint32_t>(i);
                         filled_slots++;
                         break;
                     }

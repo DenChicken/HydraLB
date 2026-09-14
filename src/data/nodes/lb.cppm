@@ -131,18 +131,18 @@ struct RouteStage {
         }
 
         const std::uint32_t hash = ::rte_jhash(&key, sizeof(key), FLOW_HASH_SEED);
-        const std::uint32_t backend_id =
+        const std::uint32_t backend_index =
             routing_table->lookup_table[hash % config::MAGLEV_TABLE_SIZE];
 
-        if (backend_id == 0 || backend_id > config::MAX_BACKENDS) {
+        if (backend_index >= routing_table->backend_count) {
             return std::unexpected(DropReason::NoBackend);
         }
 
-        if (routing_table->backends[backend_id - 1].status != config::BackendStatus::Alive) {
+        if (routing_table->backends[backend_index].status != config::BackendStatus::Alive) {
             return std::unexpected(DropReason::BackendDead);
         }
 
-        return backend_id;
+        return backend_index;
     }
 };
 
@@ -176,8 +176,8 @@ struct EncapStage {
     }
 
     std::expected<void, DropReason>
-    apply(dpdk::Packet& pkt, std::uint32_t backend_id, std::uint16_t l2_len) const {
-        if (!header_valid[backend_id - 1]) {
+    apply(dpdk::Packet& pkt, std::uint32_t backend_index, std::uint16_t l2_len) const {
+        if (!header_valid[backend_index]) {
             return std::unexpected(DropReason::EncapNoHeader);
         }
 
@@ -189,7 +189,7 @@ struct EncapStage {
         std::memmove(start, start + sizeof(::rte_ipv4_hdr), l2_len);
 
         auto* outer_ip = pkt.data_at<::rte_ipv4_hdr>(l2_len);
-        *outer_ip = headers[backend_id - 1];
+        *outer_ip = headers[backend_index];
         outer_ip->total_length =
             rte_cpu_to_be_16(static_cast<std::uint16_t>(pkt.mbuf()->pkt_len - l2_len));
         outer_ip->hdr_checksum = ::rte_ipv4_cksum(outer_ip);
@@ -286,12 +286,12 @@ private:
             return std::unexpected(parsed.error());
         }
 
-        auto backend_id = router_.lookup(parsed->key);
-        if (!backend_id) {
-            return std::unexpected(backend_id.error());
+        auto backend_index = router_.lookup(parsed->key);
+        if (!backend_index) {
+            return std::unexpected(backend_index.error());
         }
 
-        return encap_.apply(pkt, *backend_id, parsed->l2_len);
+        return encap_.apply(pkt, *backend_index, parsed->l2_len);
     }
 
 private:
