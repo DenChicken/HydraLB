@@ -97,7 +97,7 @@ public:
             }
         }
 
-        return {};
+        return packets.subspan(0, sent);
     }
 
 private:

@@ -18,6 +18,13 @@ namespace hydralb::data {
 constexpr std::size_t WORKER_BATCH_SIZE = 32;
 constexpr std::uint32_t LOCAL_TUNNEL_IP = 0x0A000001;
 
+constexpr std::size_t IDLE_BURSTS_BEFORE_STOP = 128;
+
+constexpr std::uint32_t MOCK_BACKEND_ID = 1;
+constexpr std::uint32_t MOCK_BACKEND_IP = 0x0A00000A;
+constexpr std::uint16_t MOCK_BACKEND_PORT = 80;
+constexpr std::uint32_t MOCK_BACKEND_WEIGHT = 1;
+
 using PcapPassthroughPipeline = Pipeline<1, PcapIngressNode, PcapEgressNode>;
 
 using PcapLoadBalancerPipeline = Pipeline<1, PcapIngressNode, LBNode, PcapEgressNode>;
@@ -64,8 +71,14 @@ static void worker_loop(Pipeline pipeline) {
 
     std::array<dpdk::Packet, WORKER_BATCH_SIZE> batch{};
 
-    while (true) {
-        pipeline.process(batch);
+    std::size_t idle_bursts = 0;
+
+    while (idle_bursts < IDLE_BURSTS_BEFORE_STOP) {
+        if (pipeline.process(batch).empty()) {
+            ++idle_bursts;
+        } else {
+            idle_bursts = 0;
+        }
     }
 }
 
@@ -125,16 +138,16 @@ public:
 
         static config::RoutingTable mock_routing_table;
         mock_routing_table.backends[0] = config::Backend{
-            .id = 1,
-            .ip = {.address = 0x0A00000A},
-            .port = 80,
-            .weight = 1,
+            .id = MOCK_BACKEND_ID,
+            .ip = {.address = MOCK_BACKEND_IP},
+            .port = MOCK_BACKEND_PORT,
+            .weight = MOCK_BACKEND_WEIGHT,
             .status = config::BackendStatus::Alive};
         mock_routing_table.backend_count = 1;
         std::fill(
             mock_routing_table.lookup_table.begin(),
             mock_routing_table.lookup_table.end(),
-            1);
+            MOCK_BACKEND_ID);
         mock_routing_table.is_ready = true;
 
         std::vector<WorkerContext> contexts(lcores.size());
