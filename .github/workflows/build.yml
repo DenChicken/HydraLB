@@ -87,7 +87,7 @@ jobs:
         run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --parallel "$(nproc)"
+        run: cmake --build build --parallel 1
 
       - name: Upload Binaries
         uses: actions/upload-artifact@v4
