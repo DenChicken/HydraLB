@@ -3,45 +3,103 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+env:
+  DPDK_CACHE_PATHS: |
+    build/externals/dpdk-build
+    build/externals/dpdk-install
 
 jobs:
+  externals:
+    name: Build Externals
+    runs-on: ubuntu-24.04
+
+    outputs:
+      dpdk-key: ${{ steps.dpdk-sha.outputs.key }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Resolve DPDK Cache Key
+        id: dpdk-sha
+        run: echo "key=${{ runner.os }}-dpdk-$(git rev-parse HEAD:externals/dpdk)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore DPDK Cache
+        id: cache-dpdk
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DPDK_CACHE_PATHS }}
+          key: ${{ steps.dpdk-sha.outputs.key }}
+
+      - name: Install System Deps
+        if: steps.cache-dpdk.outputs.cache-hit != 'true'
+        run: |
+          sudo bash scripts/install_deps_ubuntu.sh
+          sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+
+      - name: Build DPDK
+        if: steps.cache-dpdk.outputs.cache-hit != 'true'
+        run: bash scripts/build_dpdk.sh
+
   build:
+    name: Build
+    needs: externals
     runs-on: ubuntu-24.04
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Install System Deps
-      run: |
-        chmod +x scripts/install_deps_ubuntu.sh
-        sudo ./scripts/install_deps_ubuntu.sh
-        sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+      - name: Restore DPDK Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.DPDK_CACHE_PATHS }}
+          key: ${{ needs.externals.outputs.dpdk-key }}
+          fail-on-cache-miss: true
 
-    - uses: jwlawson/actions-setup-cmake@v2
-      with:
-        cmake-version: '4.2.0'
+      - name: Install System Deps
+        run: |
+          sudo bash scripts/install_deps_ubuntu.sh
+          sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
 
-    - name: Cache DPDK Externals
-      id: cache-ext
-      uses: actions/cache@v4
-      with:
-        path: |
-          build/externals/dpdk-build
-          build/externals/dpdk-install
-        key: ${{ runner.os }}-dpdk-${{ hashFiles('.git/modules/externals/dpdk/HEAD') }}
-        restore-keys: |
-          ${{ runner.os }}-dpdk-
+      - uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '4.2.0'
 
-    - name: Build Externals
-      if: steps.cache-ext.outputs.cache-hit != 'true'
-      run: |
-        mkdir -p build/externals
-        chmod +x scripts/build_dpdk.sh
-        bash scripts/build_dpdk.sh
+      - name: Configure and Build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel $(nproc)
 
-    - name: Configure and Build
-      run: |
-        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-        cmake --build build --parallel $(nproc)
+      - name: Upload Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: |
+            build/HydraLB
+            build/hydralb_tests
+            build/pcap
+          retention-days: 7
+
+  tests:
+    name: Tests
+    needs: build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download Binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: build
+
+      - name: Restore Executable Permissions
+        run: chmod +x build/HydraLB build/hydralb_tests
+
+      - name: Unit Tests
+        working-directory: build
+        run: ./hydralb_tests
