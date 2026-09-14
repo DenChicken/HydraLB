@@ -1,5 +1,6 @@
 export module hydralb.data:bootstrap;
 
+import hydralb.algorithms.maglev;
 import hydralb.common.config;
 import hydralb.dpdk;
 import std;
@@ -17,6 +18,33 @@ std::expected<void, std::string> setup_memory(const config::Memory& memory) {
             return std::unexpected(pool_res.error());
         }
     }
+
+    return {};
+}
+
+std::expected<void, std::string> setup_routing(
+    const config::Balancing& balancing,
+    config::RoutingTable& routing_table) {
+    if (balancing.backends.empty()) {
+        return std::unexpected("No backends configured");
+    }
+    if (balancing.backends.size() > config::MAX_BACKENDS) {
+        return std::unexpected(
+            std::format(
+                "Backend count {} exceeds maximum {}",
+                balancing.backends.size(),
+                config::MAX_BACKENDS));
+    }
+
+    std::ranges::copy(balancing.backends, routing_table.backends.begin());
+    routing_table.backend_count = balancing.backends.size();
+
+    algorithms::MaglevHasher::populate_table(
+        routing_table.backends,
+        routing_table.backend_count,
+        routing_table.lookup_table);
+
+    routing_table.is_ready.store(true, std::memory_order_release);
 
     return {};
 }

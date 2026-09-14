@@ -5,6 +5,7 @@ module;
 
 export module hydralb.data:dispatcher;
 
+import :bootstrap;
 import :pipeline;
 import :pcap_ingress;
 import :pcap_egress;
@@ -19,11 +20,6 @@ constexpr std::size_t WORKER_BATCH_SIZE = 32;
 constexpr std::uint32_t LOCAL_TUNNEL_IP = 0x0A000001;
 
 constexpr std::size_t IDLE_BURSTS_BEFORE_STOP = 128;
-
-constexpr std::uint32_t MOCK_BACKEND_ID = 1;
-constexpr std::uint32_t MOCK_BACKEND_IP = 0x0A00000A;
-constexpr std::uint16_t MOCK_BACKEND_PORT = 80;
-constexpr std::uint32_t MOCK_BACKEND_WEIGHT = 1;
 
 using PcapPassthroughPipeline = Pipeline<1, PcapIngressNode, PcapEgressNode>;
 
@@ -133,23 +129,16 @@ public:
                     max_workers));
         }
 
-        static config::RoutingTable mock_routing_table;
-        mock_routing_table.backends[0] = config::Backend{
-            .id = MOCK_BACKEND_ID,
-            .ip = {.address = MOCK_BACKEND_IP},
-            .port = MOCK_BACKEND_PORT,
-            .weight = MOCK_BACKEND_WEIGHT,
-            .status = config::BackendStatus::Alive};
-        mock_routing_table.backend_count = 1;
-        std::fill(
-            mock_routing_table.lookup_table.begin(),
-            mock_routing_table.lookup_table.end(),
-            MOCK_BACKEND_ID);
-        mock_routing_table.is_ready = true;
+        static config::RoutingTable routing_table;
+
+        auto routing_ok = setup_routing(config.balancing, routing_table);
+        if (!routing_ok) {
+            return std::unexpected(routing_ok.error());
+        }
 
         std::vector<WorkerContext> contexts(lcores.size());
         for (std::size_t i = 0; i < lcores.size(); ++i) {
-            contexts[i] = WorkerContext{&config, &mock_routing_table};
+            contexts[i] = WorkerContext{&config, &routing_table};
 
             int launch_ret = ::rte_eal_remote_launch(worker_entry, &contexts[i], lcores[i]);
             if (launch_ret < 0) {

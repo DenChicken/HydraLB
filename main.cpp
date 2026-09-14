@@ -9,6 +9,9 @@ using namespace hydralb::config;
 
 const std::string MBUF_POOL_NAME = "HYDRALB_MBUF_POOL";
 
+constexpr std::uint16_t BACKEND_PORT = 80;
+constexpr std::uint32_t BACKEND_WEIGHT = 1;
+
 AppConfig make_app_config() {
     AppConfig config;
 
@@ -26,6 +29,33 @@ AppConfig make_app_config() {
     };
 
     config.threading.worker_lcores = {1};
+
+    config.balancing.backends = {
+        Backend{
+            .id = 1,
+            .ip = {.address = 0x0A00000A},
+            .port = BACKEND_PORT,
+            .weight = BACKEND_WEIGHT,
+            .status = BackendStatus::Alive},
+        Backend{
+            .id = 2,
+            .ip = {.address = 0x0A00000B},
+            .port = BACKEND_PORT,
+            .weight = BACKEND_WEIGHT,
+            .status = BackendStatus::Alive},
+        Backend{
+            .id = 3,
+            .ip = {.address = 0x0A00000C},
+            .port = BACKEND_PORT,
+            .weight = BACKEND_WEIGHT,
+            .status = BackendStatus::Alive},
+        Backend{
+            .id = 4,
+            .ip = {.address = 0x0A00000D},
+            .port = BACKEND_PORT,
+            .weight = BACKEND_WEIGHT,
+            .status = BackendStatus::Alive},
+    };
 
     config.nodes.pcap_ingress = {
         .filename = "pcap/https-and-dns-to-google.com.pcapng",

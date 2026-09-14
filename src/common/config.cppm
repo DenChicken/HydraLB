@@ -64,11 +64,16 @@ struct Threading {
     std::vector<std::uint32_t> worker_lcores;
 };
 
+struct Balancing {
+    std::vector<Backend> backends;
+};
+
 struct AppConfig {
     Profile profile;
     Environment environment;
     Memory memory;
     Threading threading;
+    Balancing balancing;
     NodeRegistry nodes;
 };
 
