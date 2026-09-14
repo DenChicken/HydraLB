@@ -4,7 +4,6 @@ module;
 #include <rte_hash_crc.h>
 #include <rte_ip.h>
 #include <rte_mbuf.h>
-#include <rte_mbuf_dyn.h>
 #include <rte_net.h>
 #include <rte_tcp.h>
 #include <rte_udp.h>
@@ -23,23 +22,6 @@ public:
     Packet(::rte_mbuf* m) : mbuf_(m) {}
 
 public:
-    static std::expected<void, std::string> register_metadata_fields() {
-        static const struct ::rte_mbuf_dynfield backend_id_desc = {
-            .name = "hydralb_backend_id",
-            .size = sizeof(std::uint32_t),
-            .align = alignof(std::uint32_t),
-            .flags = 0,
-        };
-
-        backend_id_offset_ = ::rte_mbuf_dynfield_register(&backend_id_desc);
-        if (backend_id_offset_ < 0) {
-            return std::unexpected("Failed to register mbuf dynfield for backend_id");
-        }
-
-        return {};
-    }
-
-public:
     bool is_valid() const {
         return mbuf_ != nullptr;
     }
@@ -53,8 +35,9 @@ public:
         return mbuf_ ? rte_pktmbuf_mtod_offset(mbuf_, T*, offset) : nullptr;
     }
 
-    bool prepend_headroom(std::uint16_t size) {
-        return mbuf_ && (::rte_pktmbuf_prepend(mbuf_, size) != nullptr);
+    std::uint8_t* prepend_headroom(std::uint16_t size) {
+        return mbuf_ ? reinterpret_cast<std::uint8_t*>(::rte_pktmbuf_prepend(mbuf_, size))
+                     : nullptr;
     }
 
     void free() {
@@ -62,14 +45,6 @@ public:
             ::rte_pktmbuf_free(mbuf_);
             mbuf_ = nullptr;
         }
-    }
-
-    void set_backend_id(std::uint32_t id) {
-        *RTE_MBUF_DYNFIELD(mbuf_, backend_id_offset_, std::uint32_t*) = id;
-    }
-
-    std::uint32_t get_backend_id() const {
-        return *RTE_MBUF_DYNFIELD(mbuf_, backend_id_offset_, std::uint32_t*);
     }
 
 public:
@@ -139,7 +114,6 @@ public:
 
 private:
     ::rte_mbuf* mbuf_ = nullptr;
-    static inline int backend_id_offset_ = -1;
 };
 
 static_assert(

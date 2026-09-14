@@ -21,6 +21,23 @@ public:
         return process_priv(packets, std::make_index_sequence<sizeof...(Nodes)>{});
     }
 
+    void dump_stats() const {
+        dump_stats_priv(std::make_index_sequence<sizeof...(Nodes)>{});
+    }
+
+private:
+    template <std::size_t... Is>
+    void dump_stats_priv(std::index_sequence<Is...>) const {
+        (dump_node_stats(std::get<Is>(nodes_)), ...);
+    }
+
+    template <typename Node>
+    static void dump_node_stats(const Node& node) {
+        if constexpr (requires { node.dump_stats(); }) {
+            node.dump_stats();
+        }
+    }
+
 private:
     template <std::size_t... Is>
     constexpr std::expected<void, std::string> configure_priv(std::index_sequence<Is...>) {

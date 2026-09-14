@@ -50,8 +50,6 @@ public:
         }
 
         std::array<BackendPermutation, config::MAX_BACKENDS> permutations{};
-        std::array<std::size_t, config::MAX_BACKENDS> picked_counts{};
-        std::fill(picked_counts.begin(), picked_counts.end(), 0);
 
         for (std::size_t i = 0; i < actual_count; ++i) {
             if (backends[i].status == config::BackendStatus::Dead) {
@@ -88,7 +86,6 @@ public:
 
                     if (lookup_table[candidate_slot] == LOOKUP_INVALID_ID) {
                         lookup_table[candidate_slot] = backends[i].id;
-                        picked_counts[i]++;
                         filled_slots++;
                         break;
                     }
