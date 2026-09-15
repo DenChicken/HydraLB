@@ -1,0 +1,40 @@
+name: Build
+description: Restore prebuilt externals and build the project
+
+inputs:
+  externals-key:
+    description: Cache key of the prebuilt externals
+    required: true
+  externals-paths:
+    description: Paths restored from the externals cache
+    required: true
+  cmake-version:
+    description: CMake version to install
+    required: true
+
+runs:
+  using: composite
+
+  steps:
+    - name: Restore Externals
+      uses: actions/cache/restore@v5
+      with:
+        path: ${{ inputs.externals-paths }}
+        key: ${{ inputs.externals-key }}
+        fail-on-cache-miss: true
+
+    - name: Install Dependencies
+      shell: bash
+      run: sudo bash scripts/install_deps_ubuntu.sh
+
+    - uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: ${{ inputs.cmake-version }}
+
+    - name: Configure
+      shell: bash
+      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      shell: bash
+      run: cmake --build build --parallel "$(nproc)"
