@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUNNER_IMAGE: ubuntu-26.04
+  CMAKE_VERSION: '4.2.3'
+  EXTERNALS_PATHS: |
+    build/externals/dpdk-build
+    build/externals/dpdk-install
+
+jobs:
+  externals:
+    name: Externals
+    runs-on: ubuntu-26.04
+
+    outputs:
+      cache-key: ${{ steps.key.outputs.value }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Resolve Cache Key
+        id: key
+        run: |
+          recipe="${{ hashFiles('scripts/build_dpdk.sh', 'scripts/install_deps_ubuntu.sh') }}"
+          sources="$(git rev-parse HEAD:externals/dpdk)"
+          echo "value=${{ env.RUNNER_IMAGE }}-dpdk-${recipe}-${sources}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Externals
+        id: restore
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.EXTERNALS_PATHS }}
+          key: ${{ steps.key.outputs.value }}
+          lookup-only: true
+
+      - name: Install Dependencies
+        if: steps.restore.outputs.cache-hit != 'true'
+        run: sudo bash scripts/install_deps_ubuntu.sh
+
+      - name: Build DPDK
+        if: steps.restore.outputs.cache-hit != 'true'
+        run: bash scripts/build_dpdk.sh
+
+      - name: Save Externals
+        if: steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ env.EXTERNALS_PATHS }}
+          key: ${{ steps.key.outputs.value }}
+
+  build:
+    name: Build
+    needs: externals
+    runs-on: ubuntu-26.04
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Restore Externals
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.EXTERNALS_PATHS }}
+          key: ${{ needs.externals.outputs.cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Install Dependencies
+        run: sudo bash scripts/install_deps_ubuntu.sh
+
+      - uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: ${{ env.CMAKE_VERSION }}
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Upload Binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: binaries
+          path: |
+            build/HydraLB
+            build/hydralb_tests
+            build/pcap
+          retention-days: 7
+
+  tests:
+    name: Tests
+    needs: build
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Download Binaries
+        uses: actions/download-artifact@v8
+        with:
+          name: binaries
+          path: build
+
+      - name: Restore Executable Permissions
+        run: chmod +x build/HydraLB build/hydralb_tests
+
+      - name: Unit Tests
+        working-directory: build
+        run: ./hydralb_tests
