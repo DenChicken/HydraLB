@@ -12,6 +12,7 @@ concurrency:
 env:
   RUNNER_IMAGE: ubuntu-26.04
   CMAKE_VERSION: '4.2.3'
+  CTEST_TIMEOUT: '60'
   EXTERNALS_PATHS: |
     build/externals/dpdk-build
     build/externals/dpdk-install
@@ -89,31 +90,16 @@ jobs:
       - name: Build
         run: cmake --build build --parallel "$(nproc)"
 
+      - name: Tests
+        run: ctest --test-dir build -V --timeout ${{ env.CTEST_TIMEOUT }}
+
       - name: Upload Binaries
         uses: actions/upload-artifact@v7
         with:
           name: binaries
           path: |
             build/HydraLB
-            build/hydralb_tests
+            build/hydralb_unit_tests
+            build/hydralb_integration_tests
             build/pcap
           retention-days: 7
-
-  tests:
-    name: Tests
-    needs: build
-    runs-on: ubuntu-26.04
-
-    steps:
-      - name: Download Binaries
-        uses: actions/download-artifact@v8
-        with:
-          name: binaries
-          path: build
-
-      - name: Restore Executable Permissions
-        run: chmod +x build/HydraLB build/hydralb_tests
-
-      - name: Unit Tests
-        working-directory: build
-        run: ./hydralb_tests

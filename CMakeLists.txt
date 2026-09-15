@@ -103,6 +103,7 @@ pkg_check_modules(DPDK REQUIRED IMPORTED_TARGET libdpdk)
 
 target_link_libraries(hydralb_data PUBLIC PkgConfig::DPDK)
 target_include_directories(hydralb_data SYSTEM PUBLIC ${DPDK_INCLUDE_DIRS})
+target_link_options(hydralb_data INTERFACE -Wl,--disable-new-dtags)
 
 
 # Tests
@@ -121,15 +122,29 @@ set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 add_subdirectory("${GOOGLETEST_DIR}" EXCLUDE_FROM_ALL SYSTEM)
 
-add_executable(hydralb_tests tests/maglev_test.cpp)
+add_executable(hydralb_unit_tests tests/unit/maglev_unit_test.cpp)
 
-set_target_properties(hydralb_tests PROPERTIES COMPILE_WARNING_AS_ERROR ON)
-target_compile_options(hydralb_tests PRIVATE ${HYDRALB_WARNINGS})
-target_compile_features(hydralb_tests PRIVATE cxx_std_23)
-set_property(TARGET hydralb_tests PROPERTY CXX_MODULE_STD ON)
-target_link_libraries(hydralb_tests PRIVATE hydralb_core GTest::gtest_main)
+set_target_properties(hydralb_unit_tests PROPERTIES COMPILE_WARNING_AS_ERROR ON)
+target_compile_options(hydralb_unit_tests PRIVATE ${HYDRALB_WARNINGS})
+target_compile_features(hydralb_unit_tests PRIVATE cxx_std_23)
+set_property(TARGET hydralb_unit_tests PROPERTY CXX_MODULE_STD ON)
+target_link_libraries(hydralb_unit_tests PRIVATE hydralb_core GTest::gtest_main)
 
-add_test(NAME hydralb_tests COMMAND hydralb_tests)
+add_test(NAME hydralb_unit_tests COMMAND hydralb_unit_tests)
+
+add_executable(hydralb_integration_tests
+    tests/integration/integration_main.cpp
+    tests/integration/lb_integration_test.cpp
+)
+
+set_target_properties(hydralb_integration_tests PROPERTIES COMPILE_WARNING_AS_ERROR ON)
+target_compile_options(hydralb_integration_tests PRIVATE ${HYDRALB_WARNINGS})
+target_compile_features(hydralb_integration_tests PRIVATE cxx_std_23)
+set_property(TARGET hydralb_integration_tests PROPERTY CXX_MODULE_STD ON)
+target_include_directories(hydralb_integration_tests PRIVATE tests/integration)
+target_link_libraries(hydralb_integration_tests PRIVATE hydralb_data GTest::gtest)
+
+add_test(NAME hydralb_integration_tests COMMAND hydralb_integration_tests)
 
 
 # PCAP copy
