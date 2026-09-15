@@ -1,11 +1,11 @@
-build/
-Build/
-out/
-Out/
-x64/
-x86/
-ARM/
-ARM64/
+/build/
+/Build/
+/out/
+/Out/
+/x64/
+/x86/
+/ARM/
+/ARM64/
 
 .vs/
 *.user

@@ -70,28 +70,12 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Restore Externals
-        uses: actions/cache/restore@v5
-        with:
-          path: ${{ env.EXTERNALS_PATHS }}
-          key: ${{ needs.externals.outputs.cache-key }}
-          fail-on-cache-miss: true
-
-      - name: Install Dependencies
-        run: sudo bash scripts/install_deps_ubuntu.sh
-
-      - uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: ${{ env.CMAKE_VERSION }}
-
-      - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-
       - name: Build
-        run: cmake --build build --parallel "$(nproc)"
-
-      - name: Tests
-        run: ctest --test-dir build -V --timeout ${{ env.CTEST_TIMEOUT }}
+        uses: ./.github/actions/build
+        with:
+          externals-key: ${{ needs.externals.outputs.cache-key }}
+          externals-paths: ${{ env.EXTERNALS_PATHS }}
+          cmake-version: ${{ env.CMAKE_VERSION }}
 
       - name: Upload Binaries
         uses: actions/upload-artifact@v7
@@ -103,3 +87,23 @@ jobs:
             build/hydralb_integration_tests
             build/pcap
           retention-days: 7
+
+  tests:
+    name: Tests
+    needs: externals
+    runs-on: ubuntu-26.04
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Build
+        uses: ./.github/actions/build
+        with:
+          externals-key: ${{ needs.externals.outputs.cache-key }}
+          externals-paths: ${{ env.EXTERNALS_PATHS }}
+          cmake-version: ${{ env.CMAKE_VERSION }}
+
+      - name: Tests
+        run: ctest --test-dir build -V --timeout ${{ env.CTEST_TIMEOUT }}
