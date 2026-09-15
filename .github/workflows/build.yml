@@ -76,6 +76,7 @@ jobs:
           externals-key: ${{ needs.externals.outputs.cache-key }}
           externals-paths: ${{ env.EXTERNALS_PATHS }}
           cmake-version: ${{ env.CMAKE_VERSION }}
+          targets: HydraLB
 
       - name: Upload Binaries
         uses: actions/upload-artifact@v7
@@ -104,6 +105,7 @@ jobs:
           externals-key: ${{ needs.externals.outputs.cache-key }}
           externals-paths: ${{ env.EXTERNALS_PATHS }}
           cmake-version: ${{ env.CMAKE_VERSION }}
+          targets: hydralb_unit_tests hydralb_integration_tests
 
       - name: Tests
         run: ctest --test-dir build -V --timeout ${{ env.CTEST_TIMEOUT }}

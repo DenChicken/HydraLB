@@ -11,6 +11,9 @@ inputs:
   cmake-version:
     description: CMake version to install
     required: true
+  targets:
+    description: Targets to build
+    required: true
 
 runs:
   using: composite
@@ -37,4 +40,4 @@ runs:
 
     - name: Build
       shell: bash
-      run: cmake --build build --parallel "$(nproc)"
+      run: cmake --build build --parallel "$(nproc)" --target ${{ inputs.targets }}
