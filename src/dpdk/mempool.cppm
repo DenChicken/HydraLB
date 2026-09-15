@@ -16,10 +16,6 @@ public:
     Mempool(::rte_mempool* pool) : pool_(pool) {}
 
 public:
-    bool is_valid() const {
-        return pool_ != nullptr;
-    }
-
     ::rte_mempool* raw() {
         return pool_;
     }

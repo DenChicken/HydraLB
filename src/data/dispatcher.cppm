@@ -16,14 +16,12 @@ import std;
 
 namespace hydralb::data {
 
-constexpr std::size_t WORKER_BATCH_SIZE = 32;
-constexpr std::uint32_t LOCAL_TUNNEL_IP = 0x0A000001;
-
 constexpr std::size_t IDLE_BURSTS_BEFORE_STOP = 128;
+constexpr std::size_t SUPPORTED_WORKERS = 1;
 
-using PcapPassthroughPipeline = Pipeline<1, PcapIngressNode, PcapEgressNode>;
+using PcapPassthroughPipeline = Pipeline<PcapIngressNode, PcapEgressNode>;
 
-using PcapLoadBalancerPipeline = Pipeline<1, PcapIngressNode, LBNode, PcapEgressNode>;
+using PcapLoadBalancerPipeline = Pipeline<PcapIngressNode, LBNode, PcapEgressNode>;
 
 struct WorkerContext {
     const config::AppConfig* config = nullptr;
@@ -42,7 +40,8 @@ static PcapLoadBalancerPipeline make_pcap_lb_pipeline(
     const config::RoutingTable& rt) {
     LBNode::Config lb_config{
         .routing_table = &rt,
-        .local_tunnel_ip = LOCAL_TUNNEL_IP,
+        .local_tunnel_ip = config.balancing.local_tunnel_ip.address,
+        .flow_hash_seed = config.balancing.flow_hash_seed,
         .lcore_id = ::rte_lcore_id()};
 
     return PcapLoadBalancerPipeline{
@@ -60,7 +59,7 @@ static void worker_loop(Pipeline pipeline) {
         return;
     }
 
-    std::array<dpdk::Packet, WORKER_BATCH_SIZE> batch{};
+    std::array<dpdk::Packet, config::BURST_SIZE> batch{};
 
     std::size_t idle_bursts = 0;
 
@@ -73,6 +72,7 @@ static void worker_loop(Pipeline pipeline) {
     }
 
     pipeline.dump_stats();
+    pipeline.shutdown();
 }
 
 }  // namespace hydralb::data
@@ -84,7 +84,7 @@ static int worker_entry(void* arg) {
     const auto& config = *ctx->config;
     const auto& rt = *ctx->routing_table;
 
-    switch (config.profile.mode) {
+    switch (config.mode) {
         case hydralb::config::PipelineMode::PcapPassthrough:
             hydralb::data::worker_loop(hydralb::data::make_passthrough_pipeline(config));
             break;
@@ -104,36 +104,19 @@ export namespace hydralb::data {
 
 class Dispatcher {
 public:
-    static std::expected<void, std::string> run(const config::AppConfig& config) {
-        std::size_t max_workers = 0;
-        switch (config.profile.mode) {
-            case config::PipelineMode::PcapPassthrough:
-                max_workers = PcapPassthroughPipeline::max_workers;
-                break;
-            case config::PipelineMode::PcapLoadBalancer:
-                max_workers = PcapLoadBalancerPipeline::max_workers;
-                break;
-            default:
-                return std::unexpected("Invalid profile mode");
-        }
-
+    static std::expected<void, std::string> run(
+        const config::AppConfig& config,
+        const config::RoutingTable& routing_table) {
         const auto& lcores = config.threading.worker_lcores;
         if (lcores.empty()) {
             return std::unexpected("No worker lcores configured");
         }
-        if (lcores.size() > max_workers) {
+        if (lcores.size() > SUPPORTED_WORKERS) {
             return std::unexpected(
                 std::format(
-                    "Worker lcore count {} exceeds pipeline max workers {}",
+                    "Worker lcore count {} exceeds supported workers {}",
                     lcores.size(),
-                    max_workers));
-        }
-
-        static config::RoutingTable routing_table;
-
-        auto routing_ok = setup_routing(config.balancing, routing_table);
-        if (!routing_ok) {
-            return std::unexpected(routing_ok.error());
+                    SUPPORTED_WORKERS));
         }
 
         std::vector<WorkerContext> contexts(lcores.size());
