@@ -50,7 +50,7 @@ std::size_t count_empty(const LookupTable& table) {
     return static_cast<std::size_t>(std::ranges::count(table, algorithms::LOOKUP_EMPTY_SLOT));
 }
 
-class MaglevTest : public ::testing::Test {
+class UnitMaglevTest : public ::testing::Test {
 protected:
     static void populate(const std::vector<config::Backend>& backends, LookupTable& target) {
         algorithms::MaglevHasher::populate_table(backends, backends.size(), target);
@@ -59,13 +59,13 @@ protected:
     LookupTable table{};
 };
 
-TEST_F(MaglevTest, FillsEverySlot) {
+TEST_F(UnitMaglevTest, FillsEverySlot) {
     populate(make_backends(DEFAULT_BACKEND_COUNT), table);
 
     EXPECT_EQ(count_empty(table), 0u);
 }
 
-TEST_F(MaglevTest, AssignsOnlyKnownBackends) {
+TEST_F(UnitMaglevTest, AssignsOnlyKnownBackends) {
     populate(make_backends(DEFAULT_BACKEND_COUNT), table);
 
     for (const std::uint32_t slot : table) {
@@ -73,7 +73,7 @@ TEST_F(MaglevTest, AssignsOnlyKnownBackends) {
     }
 }
 
-TEST_F(MaglevTest, IsDeterministic) {
+TEST_F(UnitMaglevTest, IsDeterministic) {
     LookupTable other{};
 
     populate(make_backends(DEFAULT_BACKEND_COUNT), table);
@@ -82,7 +82,7 @@ TEST_F(MaglevTest, IsDeterministic) {
     EXPECT_EQ(table, other);
 }
 
-TEST_F(MaglevTest, DistributesEvenly) {
+TEST_F(UnitMaglevTest, DistributesEvenly) {
     populate(make_backends(DEFAULT_BACKEND_COUNT), table);
 
     const auto counts = count_slots(table);
@@ -95,7 +95,7 @@ TEST_F(MaglevTest, DistributesEvenly) {
     }
 }
 
-TEST_F(MaglevTest, MovesMinimalSlotsWhenBackendDies) {
+TEST_F(UnitMaglevTest, MovesMinimalSlotsWhenBackendDies) {
     auto backends = make_backends(DEFAULT_BACKEND_COUNT);
     populate(backends, table);
 
@@ -122,7 +122,7 @@ TEST_F(MaglevTest, MovesMinimalSlotsWhenBackendDies) {
     EXPECT_LT(excess, MAX_EXCESS_DISRUPTION);
 }
 
-TEST_F(MaglevTest, KeepsDeadBackendOutOfTable) {
+TEST_F(UnitMaglevTest, KeepsDeadBackendOutOfTable) {
     auto backends = make_backends(DEFAULT_BACKEND_COUNT);
     const std::size_t dead_index = 2;
     backends[dead_index].status = config::BackendStatus::Dead;
@@ -133,7 +133,7 @@ TEST_F(MaglevTest, KeepsDeadBackendOutOfTable) {
     EXPECT_EQ(count_empty(table), 0u);
 }
 
-TEST_F(MaglevTest, EmptiesTableWhenNoBackendsAlive) {
+TEST_F(UnitMaglevTest, EmptiesTableWhenNoBackendsAlive) {
     auto backends = make_backends(DEFAULT_BACKEND_COUNT);
     for (auto& backend : backends) {
         backend.status = config::BackendStatus::Dead;
@@ -144,13 +144,13 @@ TEST_F(MaglevTest, EmptiesTableWhenNoBackendsAlive) {
     EXPECT_EQ(count_empty(table), config::MAGLEV_TABLE_SIZE);
 }
 
-TEST_F(MaglevTest, EmptiesTableWhenNoBackends) {
+TEST_F(UnitMaglevTest, EmptiesTableWhenNoBackends) {
     populate({}, table);
 
     EXPECT_EQ(count_empty(table), config::MAGLEV_TABLE_SIZE);
 }
 
-TEST_F(MaglevTest, SendsEverythingToSingleAliveBackend) {
+TEST_F(UnitMaglevTest, SendsEverythingToSingleAliveBackend) {
     populate(make_backends(1), table);
 
     EXPECT_EQ(count_slots(table)[0], config::MAGLEV_TABLE_SIZE);
