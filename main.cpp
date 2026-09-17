@@ -69,6 +69,12 @@ int main() {
         return 1;
     }
 
+    auto signals_ok = hydralb::dpdk::Signals::install_handlers();
+    if (!signals_ok) {
+        std::println(std::cerr, "Error: {}", signals_ok.error());
+        return 1;
+    }
+
     auto memory_ok = hydralb::data::setup_memory(config.memory);
     if (!memory_ok) {
         std::println(std::cerr, "Error: {}", memory_ok.error());
