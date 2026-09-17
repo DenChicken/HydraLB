@@ -89,37 +89,35 @@ RuntimeConfig make_runtime_config() {
     return runtime;
 }
 
-std::expected<void, std::string> run_pipelines(
-    const StartupConfig& startup,
-    const RuntimeConfig& runtime) {
+std::expected<void, std::string> run_dataplane(const AppConfig& config) {
     auto signals_ok = hydralb::dpdk::Signals::install_handlers();
     if (!signals_ok) {
         return signals_ok;
     }
 
-    auto memory_ok = hydralb::data::setup_memory(startup);
+    auto memory_ok = hydralb::data::setup_memory(config.startup);
     if (!memory_ok) {
         return memory_ok;
     }
 
-    auto devices_ok = hydralb::data::setup_devices(startup);
+    auto devices_ok = hydralb::data::setup_devices(config.startup);
     if (!devices_ok) {
         return devices_ok;
     }
 
     RoutingTable routing_table;
 
-    auto routing_ok = hydralb::data::setup_routing(runtime, routing_table);
+    auto routing_ok = hydralb::data::setup_routing(config.runtime, routing_table);
     if (!routing_ok) {
-        hydralb::data::teardown_devices(startup);
+        hydralb::data::teardown_devices(config.startup);
         return routing_ok;
     }
 
     std::println("DPDK EAL, mempools and routing table are ready");
 
-    auto run_ok = hydralb::data::Dispatcher::run(startup, runtime, routing_table);
+    auto run_ok = hydralb::data::Dispatcher::run(config, routing_table);
 
-    hydralb::data::teardown_devices(startup);
+    hydralb::data::teardown_devices(config.startup);
 
     return run_ok;
 }
@@ -127,29 +125,28 @@ std::expected<void, std::string> run_pipelines(
 }  // namespace
 
 int main() {
-    const StartupConfig startup = make_startup_config();
-    const RuntimeConfig runtime = make_runtime_config();
+    const AppConfig config{make_startup_config(), make_runtime_config()};
 
-    auto valid_ok = hydralb::data::validate_startup(startup);
+    auto valid_ok = hydralb::data::validate_startup(config.startup);
     if (!valid_ok) {
         std::println(std::cerr, "Error: {}", valid_ok.error());
         return 1;
     }
 
-    auto init_ok = hydralb::dpdk::Eal::init(startup.eal_args);
+    auto init_ok = hydralb::dpdk::Eal::init(config.startup.eal_args);
     if (!init_ok) {
         std::println(std::cerr, "Error: {}", init_ok.error());
         return 1;
     }
 
-    auto pipelines_ok = run_pipelines(startup, runtime);
+    auto dataplane_ok = run_dataplane(config);
 
     std::println("Pipeline finished. Cleaning up...");
 
     hydralb::dpdk::Eal::cleanup();
 
-    if (!pipelines_ok) {
-        std::println(std::cerr, "Error: {}", pipelines_ok.error());
+    if (!dataplane_ok) {
+        std::println(std::cerr, "Error: {}", dataplane_ok.error());
         return 1;
     }
 

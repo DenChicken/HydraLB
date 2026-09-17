@@ -72,4 +72,9 @@ struct RuntimeConfig {
     std::uint32_t flow_hash_seed = 0;
 };
 
+struct AppConfig {
+    StartupConfig startup;
+    RuntimeConfig runtime;
+};
+
 }  // namespace hydralb::config
