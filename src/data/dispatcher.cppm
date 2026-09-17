@@ -27,6 +27,8 @@ using PcapLoadBalancerPipeline = Pipeline<PcapIngressNode, LBNode, PcapEgressNod
 struct WorkerContext {
     const config::AppConfig* config = nullptr;
     const config::RoutingTable* routing_table = nullptr;
+    std::vector<NodeStats>* stats = nullptr;
+    std::uint32_t lcore_id = 0;
 };
 
 static PcapPassthroughPipeline make_passthrough_pipeline(const config::AppConfig& config) {
@@ -42,8 +44,7 @@ static PcapLoadBalancerPipeline make_pcap_lb_pipeline(
     LBNode::Config lb_config{
         .routing_table = &rt,
         .local_tunnel_ip = config.balancing.local_tunnel_ip.address,
-        .flow_hash_seed = config.balancing.flow_hash_seed,
-        .lcore_id = ::rte_lcore_id()};
+        .flow_hash_seed = config.balancing.flow_hash_seed};
 
     return PcapLoadBalancerPipeline{
         PcapIngressNode{config.nodes.pcap_ingress},
@@ -53,7 +54,7 @@ static PcapLoadBalancerPipeline make_pcap_lb_pipeline(
 }
 
 template <typename Pipeline>
-static void worker_loop(Pipeline pipeline) {
+static void worker_loop(Pipeline pipeline, std::vector<NodeStats>& stats) {
     auto configure_ok = pipeline.configure();
     if (!configure_ok) {
         std::println(std::cerr, "Worker configure failed: {}", configure_ok.error());
@@ -72,7 +73,7 @@ static void worker_loop(Pipeline pipeline) {
         }
     }
 
-    pipeline.dump_stats();
+    stats = pipeline.collect_stats();
     pipeline.shutdown();
 }
 
@@ -85,12 +86,18 @@ static int worker_entry(void* arg) {
     const auto& config = *ctx->config;
     const auto& rt = *ctx->routing_table;
 
+    ctx->lcore_id = ::rte_lcore_id();
+
     switch (config.mode) {
         case hydralb::config::PipelineMode::PcapPassthrough:
-            hydralb::data::worker_loop(hydralb::data::make_passthrough_pipeline(config));
+            hydralb::data::worker_loop(
+                hydralb::data::make_passthrough_pipeline(config),
+                *ctx->stats);
             break;
         case hydralb::config::PipelineMode::PcapLoadBalancer:
-            hydralb::data::worker_loop(hydralb::data::make_pcap_lb_pipeline(config, rt));
+            hydralb::data::worker_loop(
+                hydralb::data::make_pcap_lb_pipeline(config, rt),
+                *ctx->stats);
             break;
         default:
             break;
@@ -121,10 +128,13 @@ public:
         }
 
         std::vector<WorkerContext> contexts(lcores.size());
+        std::vector<std::vector<NodeStats>> stats(lcores.size());
         std::expected<void, std::string> launch_result;
 
+        std::size_t launched = 0;
+
         for (std::size_t i = 0; i < lcores.size(); ++i) {
-            contexts[i] = WorkerContext{&config, &routing_table};
+            contexts[i] = WorkerContext{&config, &routing_table, &stats[i], 0};
 
             int launch_ret = ::rte_eal_remote_launch(worker_entry, &contexts[i], lcores[i]);
             if (launch_ret < 0) {
@@ -135,9 +145,15 @@ public:
                         ::rte_strerror(-launch_ret)));
                 break;
             }
+
+            ++launched;
         }
 
         ::rte_eal_mp_wait_lcore();
+
+        for (std::size_t i = 0; i < launched; ++i) {
+            print_stats(contexts[i].lcore_id, stats[i]);
+        }
 
         return launch_result;
     }

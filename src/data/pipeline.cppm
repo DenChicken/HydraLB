@@ -41,12 +41,17 @@ public:
             nodes_);
     }
 
-    void dump_stats() const {
+    std::vector<NodeStats> collect_stats() const {
+        std::vector<NodeStats> stats;
+        stats.reserve(sizeof...(Nodes));
+
         std::apply(
-            [](const auto&... nodes) {
-                (nodes.dump_stats(), ...);
+            [&stats](const auto&... nodes) {
+                (stats.push_back(nodes.collect_stats()), ...);
             },
             nodes_);
+
+        return stats;
     }
 
 private:

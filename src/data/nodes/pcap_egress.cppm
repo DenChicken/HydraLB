@@ -18,6 +18,8 @@ constexpr std::uint16_t PCAP_EGRESS_QUEUE_ID = 0;
 constexpr std::uint16_t PCAP_EGRESS_RX_QUEUES = 0;
 constexpr std::uint16_t PCAP_EGRESS_TX_QUEUES = 1;
 
+constexpr std::string_view PCAP_EGRESS_NODE_NAME = "pcap_egress";
+
 }  // namespace hydralb::data
 
 export namespace hydralb::data {
@@ -79,12 +81,23 @@ public:
             packets[i].free();
         }
 
+        sent_ += sent;
+        dropped_ += packets.size() - sent;
+
         return packets.subspan(0, sent);
     }
 
-    void dump_stats() const {}
+    NodeStats collect_stats() const {
+        return NodeStats{
+            .node = PCAP_EGRESS_NODE_NAME,
+            .counters = {
+                {.name = SENT_COUNTER, .value = sent_},
+                {.name = DROPPED_COUNTER, .value = dropped_}}};
+    }
 
 private:
+    std::uint64_t sent_ = 0;
+    std::uint64_t dropped_ = 0;
     std::string device_name_;
     std::string vdev_args_;
     dpdk::Device device_;
