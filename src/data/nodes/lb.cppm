@@ -183,6 +183,8 @@ struct EncapStage {
     }
 };
 
+constexpr std::string_view LB_NODE_NAME = "lb";
+
 struct Stats {
     std::uint64_t received = 0;
     std::uint64_t forwarded = 0;
@@ -192,6 +194,23 @@ struct Stats {
     void record_drop(DropReason reason) {
         ++dropped;
         ++drops[std::to_underlying(reason)];
+    }
+
+    NodeStats collect() const {
+        NodeStats stats{.node = LB_NODE_NAME, .counters = {}};
+
+        stats.counters.push_back({.name = RECEIVED_COUNTER, .value = received});
+        stats.counters.push_back({.name = FORWARDED_COUNTER, .value = forwarded});
+        stats.counters.push_back({.name = DROPPED_COUNTER, .value = dropped});
+
+        for (std::size_t i = 0; i < DROP_REASON_COUNT; ++i) {
+            if (drops[i] != 0) {
+                stats.counters.push_back(
+                    {.name = drop_reason_name(static_cast<DropReason>(i)), .value = drops[i]});
+            }
+        }
+
+        return stats;
     }
 };
 
@@ -205,7 +224,6 @@ public:
         const config::RoutingTable* routing_table = nullptr;
         std::uint32_t local_tunnel_ip = 0;
         std::uint32_t flow_hash_seed = 0;
-        std::uint32_t lcore_id = 0;
     };
 
     explicit LBNode(const Config& config)
@@ -247,20 +265,8 @@ public:
         return packets.subspan(0, forwarded);
     }
 
-    void dump_stats() const {
-        std::println("Core {} stats:", config_.lcore_id);
-        std::println("  received:  {}", stats_.received);
-        std::println("  forwarded: {}", stats_.forwarded);
-        std::println("  dropped:   {}", stats_.dropped);
-
-        for (std::size_t i = 0; i < DROP_REASON_COUNT; ++i) {
-            if (stats_.drops[i] != 0) {
-                std::println(
-                    "    {}: {}",
-                    drop_reason_name(static_cast<DropReason>(i)),
-                    stats_.drops[i]);
-            }
-        }
+    NodeStats collect_stats() const {
+        return stats_.collect();
     }
 
 private:

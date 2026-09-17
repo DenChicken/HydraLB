@@ -1,9 +1,13 @@
 #pragma once
 
+import hydralb.data;
 import hydralb.dpdk;
 import std;
 
 namespace hydralb::test {
+
+constexpr std::string_view SOURCE_NODE_NAME = "source";
+constexpr std::string_view SINK_NODE_NAME = "sink";
 
 class SourceNode {
 public:
@@ -24,7 +28,9 @@ public:
 
     void shutdown() {}
 
-    void dump_stats() const {}
+    data::NodeStats collect_stats() const {
+        return data::NodeStats{.node = SOURCE_NODE_NAME, .counters = {}};
+    }
 
 private:
     std::span<const dpdk::Packet> packets_;
@@ -46,7 +52,9 @@ public:
 
     void shutdown() {}
 
-    void dump_stats() const {}
+    data::NodeStats collect_stats() const {
+        return data::NodeStats{.node = SINK_NODE_NAME, .counters = {}};
+    }
 
 private:
     std::vector<dpdk::Packet>* collected_ = nullptr;

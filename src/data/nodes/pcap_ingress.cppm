@@ -18,6 +18,8 @@ constexpr std::uint16_t PCAP_INGRESS_QUEUE_ID = 0;
 constexpr std::uint16_t PCAP_INGRESS_RX_QUEUES = 1;
 constexpr std::uint16_t PCAP_INGRESS_TX_QUEUES = 0;
 
+constexpr std::string_view PCAP_INGRESS_NODE_NAME = "pcap_ingress";
+
 }  // namespace hydralb::data
 
 export namespace hydralb::data {
@@ -80,12 +82,18 @@ public:
 
     std::span<dpdk::Packet> process(std::span<dpdk::Packet> packets) {
         const std::size_t received = queue_.rx_burst(packets);
+        received_ += received;
         return packets.subspan(0, received);
     }
 
-    void dump_stats() const {}
+    NodeStats collect_stats() const {
+        return NodeStats{
+            .node = PCAP_INGRESS_NODE_NAME,
+            .counters = {{.name = RECEIVED_COUNTER, .value = received_}}};
+    }
 
 private:
+    std::uint64_t received_ = 0;
     std::string device_name_;
     std::string vdev_args_;
     std::string mempool_name_;
