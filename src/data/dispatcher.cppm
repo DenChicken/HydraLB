@@ -29,6 +29,25 @@ struct WorkerContext {
     std::uint32_t lcore_id = 0;
 };
 
+static void print_stats(std::uint32_t lcore_id, std::span<const NodeStats> stats) {
+    if (stats.empty()) {
+        return;
+    }
+
+    std::println("Core {} stats:", lcore_id);
+
+    for (const auto& node_stats : stats) {
+        if (node_stats.counters.empty()) {
+            continue;
+        }
+
+        std::println("  {}:", node_stats.node);
+        for (const auto& counter : node_stats.counters) {
+            std::println("    {}: {}", counter.name, counter.value);
+        }
+    }
+}
+
 static PcapIngressNode::Config make_ingress_config(const config::WorkerConfig& worker) {
     return PcapIngressNode::Config{
         .device_name = worker.rx.device,

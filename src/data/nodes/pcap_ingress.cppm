@@ -42,7 +42,7 @@ public:
         device_ = dpdk::Device{*port_res};
 
         auto configure_res = device_.configure(
-            dpdk::DeviceConfig{
+            dpdk::QueueLayout{
                 .rx_queues = PCAP_INGRESS_RX_QUEUES,
                 .tx_queues = PCAP_INGRESS_TX_QUEUES});
         if (!configure_res) {
@@ -51,7 +51,7 @@ public:
 
         auto mempool_res = dpdk::Mempool::find_by_name(mempool_name_);
         if (!mempool_res) {
-            return std::unexpected(std::format("Mempool not found: {}", mempool_name_));
+            return std::unexpected(mempool_res.error());
         }
 
         auto rx_setup_res = device_.setup_rx_queue(queue_id_, *mempool_res);

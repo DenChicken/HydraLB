@@ -50,10 +50,10 @@ public:
         return Mempool(pool);
     }
 
-    static std::optional<Mempool> find_by_name(const std::string& name) {
+    static std::expected<Mempool, std::string> find_by_name(const std::string& name) {
         ::rte_mempool* pool = ::rte_mempool_lookup(name.c_str());
         if (!pool) {
-            return std::nullopt;
+            return std::unexpected(std::format("Mempool not found: {}", name));
         }
         return Mempool(pool);
     }

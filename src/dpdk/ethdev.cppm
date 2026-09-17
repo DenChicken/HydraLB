@@ -20,7 +20,7 @@ constexpr std::uint16_t QUEUES_DEFAULT = 1;
 constexpr std::uint16_t RX_DESCRIPTORS_DEFAULT = 1024;
 constexpr std::uint16_t TX_DESCRIPTORS_DEFAULT = 1024;
 
-struct DeviceConfig {
+struct QueueLayout {
     std::uint16_t rx_queues = QUEUES_DEFAULT;
     std::uint16_t tx_queues = QUEUES_DEFAULT;
     std::uint16_t rx_descriptors = RX_DESCRIPTORS_DEFAULT;
@@ -43,17 +43,17 @@ public:
         return port_id;
     }
 
-    std::expected<void, std::string> configure(const DeviceConfig& config) {
+    std::expected<void, std::string> configure(const QueueLayout& layout) {
         struct ::rte_eth_conf port_conf{};
 
-        int ret = ::rte_eth_dev_configure(id_, config.rx_queues, config.tx_queues, &port_conf);
+        int ret = ::rte_eth_dev_configure(id_, layout.rx_queues, layout.tx_queues, &port_conf);
         if (ret < 0) {
             return std::unexpected(
                 std::format("Failed to configure eth device {}: {}", id_, ::rte_strerror(-ret)));
         }
 
-        rx_descriptors_ = config.rx_descriptors;
-        tx_descriptors_ = config.tx_descriptors;
+        rx_descriptors_ = layout.rx_descriptors;
+        tx_descriptors_ = layout.tx_descriptors;
 
         return {};
     }

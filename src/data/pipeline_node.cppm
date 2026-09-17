@@ -28,23 +28,4 @@ concept PipelineNode = requires(const T node, T mutable_node, std::span<dpdk::Pa
     { node.collect_stats() } -> std::same_as<NodeStats>;
 };
 
-void print_stats(std::uint32_t lcore_id, std::span<const NodeStats> stats) {
-    if (stats.empty()) {
-        return;
-    }
-
-    std::println("Core {} stats:", lcore_id);
-
-    for (const auto& node_stats : stats) {
-        if (node_stats.counters.empty()) {
-            continue;
-        }
-
-        std::println("  {}:", node_stats.node);
-        for (const auto& counter : node_stats.counters) {
-            std::println("    {}: {}", counter.name, counter.value);
-        }
-    }
-}
-
 }  // namespace hydralb::data

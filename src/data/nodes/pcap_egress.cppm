@@ -39,7 +39,7 @@ public:
         device_ = dpdk::Device{*port_res};
 
         auto configure_res = device_.configure(
-            dpdk::DeviceConfig{
+            dpdk::QueueLayout{
                 .rx_queues = PCAP_EGRESS_RX_QUEUES,
                 .tx_queues = PCAP_EGRESS_TX_QUEUES});
         if (!configure_res) {

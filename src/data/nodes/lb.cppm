@@ -122,7 +122,7 @@ struct RouteStage {
     const config::RoutingTable* routing_table = nullptr;
     std::uint32_t hash_seed = 0;
 
-    std::expected<std::uint32_t, DropReason> lookup(const network::FlowKey& key) const {
+    std::expected<std::uint32_t, DropReason> select_backend(const network::FlowKey& key) const {
         if (!routing_table->is_ready.load(std::memory_order_acquire)) {
             return std::unexpected(DropReason::RoutingTableNotReady);
         }
@@ -276,7 +276,7 @@ private:
             return std::unexpected(parsed.error());
         }
 
-        auto backend_index = router_.lookup(parsed->key);
+        auto backend_index = router_.select_backend(parsed->key);
         if (!backend_index) {
             return std::unexpected(backend_index.error());
         }
