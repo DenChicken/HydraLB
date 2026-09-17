@@ -29,21 +29,21 @@ constexpr std::uint16_t SERVICE_PORT = 443;
 constexpr std::size_t FLOW_COUNT = 16;
 constexpr std::size_t PACKETS_PER_FLOW = 4;
 
-config::Balancing make_balancing() {
-    config::Balancing balancing;
+config::RuntimeConfig make_runtime() {
+    config::RuntimeConfig runtime;
 
-    balancing.local_tunnel_ip = {.address = LOCAL_TUNNEL_IP};
-    balancing.flow_hash_seed = FLOW_HASH_SEED;
+    runtime.local_tunnel_ip = {.address = LOCAL_TUNNEL_IP};
+    runtime.flow_hash_seed = FLOW_HASH_SEED;
 
     for (std::size_t i = 0; i < BACKEND_COUNT; ++i) {
-        balancing.backends.push_back(
+        runtime.backends.push_back(
             config::Backend{
                 .id = static_cast<std::uint32_t>(i + 1),
                 .ip = {.address = BACKEND_IP_BASE + static_cast<std::uint32_t>(i)},
                 .status = config::BackendStatus::Alive});
     }
 
-    return balancing;
+    return runtime;
 }
 
 FlowSpec make_flow(std::size_t index) {
@@ -60,7 +60,7 @@ protected:
     void SetUp() override {
         IntegrationSuite::SetUp();
 
-        auto routing_ok = data::setup_routing(make_balancing(), routing_table_);
+        auto routing_ok = data::setup_routing(make_runtime(), routing_table_);
         ASSERT_TRUE(routing_ok) << (routing_ok ? "" : routing_ok.error());
     }
 

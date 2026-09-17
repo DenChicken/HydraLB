@@ -17,38 +17,49 @@ import std;
 
 namespace hydralb::data {
 
-constexpr std::size_t SUPPORTED_WORKERS = 1;
-
 using PcapPassthroughPipeline = Pipeline<PcapIngressNode, PcapEgressNode>;
 
 using PcapLoadBalancerPipeline = Pipeline<PcapIngressNode, LBNode, PcapEgressNode>;
 
 struct WorkerContext {
-    const config::AppConfig* config = nullptr;
+    const config::WorkerConfig* worker = nullptr;
+    const config::RuntimeConfig* runtime = nullptr;
     const config::RoutingTable* routing_table = nullptr;
     std::vector<NodeStats>* stats = nullptr;
     std::uint32_t lcore_id = 0;
 };
 
-static PcapPassthroughPipeline make_passthrough_pipeline(const config::AppConfig& config) {
+static PcapIngressNode::Config make_ingress_config(const config::WorkerConfig& worker) {
+    return PcapIngressNode::Config{
+        .device_name = worker.rx.device,
+        .mempool_name = worker.mempool,
+        .queue_id = worker.rx.queue};
+}
+
+static PcapEgressNode::Config make_egress_config(const config::WorkerConfig& worker) {
+    return PcapEgressNode::Config{.device_name = worker.tx.device, .queue_id = worker.tx.queue};
+}
+
+static PcapPassthroughPipeline make_passthrough_pipeline(const config::WorkerConfig& worker) {
     return PcapPassthroughPipeline{
-        PcapIngressNode{config.nodes.pcap_ingress},
-        PcapEgressNode{config.nodes.pcap_egress},
+        PcapIngressNode{make_ingress_config(worker)},
+        PcapEgressNode{make_egress_config(worker)},
     };
 }
 
 static PcapLoadBalancerPipeline make_pcap_lb_pipeline(
-    const config::AppConfig& config,
+    const config::WorkerConfig& worker,
+    const config::RuntimeConfig& runtime,
     const config::RoutingTable& rt) {
     LBNode::Config lb_config{
         .routing_table = &rt,
-        .local_tunnel_ip = config.balancing.local_tunnel_ip.address,
-        .flow_hash_seed = config.balancing.flow_hash_seed};
+        .local_tunnel_ip = runtime.local_tunnel_ip.address,
+        .flow_hash_seed = runtime.flow_hash_seed};
 
     return PcapLoadBalancerPipeline{
-        PcapIngressNode{config.nodes.pcap_ingress},
+        PcapIngressNode{make_ingress_config(worker)},
         LBNode{lb_config},
-        PcapEgressNode{config.nodes.pcap_egress},
+        PcapEgressNode{make_egress_config(worker)},
     };
 }
 
@@ -78,20 +89,21 @@ extern "C" {
 
 static int worker_entry(void* arg) {
     auto* ctx = static_cast<hydralb::data::WorkerContext*>(arg);
-    const auto& config = *ctx->config;
+    const auto& worker = *ctx->worker;
+    const auto& runtime = *ctx->runtime;
     const auto& rt = *ctx->routing_table;
 
     ctx->lcore_id = ::rte_lcore_id();
 
-    switch (config.mode) {
+    switch (worker.mode) {
         case hydralb::config::PipelineMode::PcapPassthrough:
             hydralb::data::worker_loop(
-                hydralb::data::make_passthrough_pipeline(config),
+                hydralb::data::make_passthrough_pipeline(worker),
                 *ctx->stats);
             break;
         case hydralb::config::PipelineMode::PcapLoadBalancer:
             hydralb::data::worker_loop(
-                hydralb::data::make_pcap_lb_pipeline(config, rt),
+                hydralb::data::make_pcap_lb_pipeline(worker, runtime, rt),
                 *ctx->stats);
             break;
         default:
@@ -108,35 +120,29 @@ export namespace hydralb::data {
 class Dispatcher {
 public:
     static std::expected<void, std::string> run(
-        const config::AppConfig& config,
+        const config::StartupConfig& startup,
+        const config::RuntimeConfig& runtime,
         const config::RoutingTable& routing_table) {
-        const auto& lcores = config.threading.worker_lcores;
-        if (lcores.empty()) {
-            return std::unexpected("No worker lcores configured");
-        }
-        if (lcores.size() > SUPPORTED_WORKERS) {
-            return std::unexpected(
-                std::format(
-                    "Worker lcore count {} exceeds supported workers {}",
-                    lcores.size(),
-                    SUPPORTED_WORKERS));
+        const auto& workers = startup.workers;
+        if (workers.empty()) {
+            return std::unexpected("No workers configured");
         }
 
-        std::vector<WorkerContext> contexts(lcores.size());
-        std::vector<std::vector<NodeStats>> stats(lcores.size());
+        std::vector<WorkerContext> contexts(workers.size());
+        std::vector<std::vector<NodeStats>> stats(workers.size());
         std::expected<void, std::string> launch_result;
 
         std::size_t launched = 0;
 
-        for (std::size_t i = 0; i < lcores.size(); ++i) {
-            contexts[i] = WorkerContext{&config, &routing_table, &stats[i], 0};
+        for (std::size_t i = 0; i < workers.size(); ++i) {
+            contexts[i] = WorkerContext{&workers[i], &runtime, &routing_table, &stats[i], 0};
 
-            int launch_ret = ::rte_eal_remote_launch(worker_entry, &contexts[i], lcores[i]);
+            int launch_ret = ::rte_eal_remote_launch(worker_entry, &contexts[i], workers[i].lcore);
             if (launch_ret < 0) {
                 launch_result = std::unexpected(
                     std::format(
                         "Failed to launch worker on lcore {}: {}",
-                        lcores[i],
+                        workers[i].lcore,
                         ::rte_strerror(-launch_ret)));
                 break;
             }

@@ -1,6 +1,5 @@
 module;
 
-#include <rte_bus_vdev.h>
 #include <rte_ethdev.h>
 
 export module hydralb.data:pcap_egress;
@@ -12,9 +11,6 @@ import std;
 
 namespace hydralb::data {
 
-constexpr std::string_view PCAP_EGRESS_TX_ARG_KEY = "tx_pcap";
-
-constexpr std::uint16_t PCAP_EGRESS_QUEUE_ID = 0;
 constexpr std::uint16_t PCAP_EGRESS_RX_QUEUES = 0;
 constexpr std::uint16_t PCAP_EGRESS_TX_QUEUES = 1;
 
@@ -26,19 +22,15 @@ export namespace hydralb::data {
 
 class PcapEgressNode {
 public:
-    PcapEgressNode(const config::PcapEgressConfig& config)
-        : device_name_(config.device_name),
-          vdev_args_(std::format("{}={}", PCAP_EGRESS_TX_ARG_KEY, config.filename)) {}
+    struct Config {
+        std::string device_name;
+        std::uint16_t queue_id = 0;
+    };
+
+    explicit PcapEgressNode(const Config& config)
+        : device_name_(config.device_name), queue_id_(config.queue_id) {}
 
     std::expected<void, std::string> configure() {
-        int hotplug_ret =
-            ::rte_eal_hotplug_add(config::VDEV_BUS_NAME, device_name_.c_str(), vdev_args_.c_str());
-
-        if (hotplug_ret < 0) {
-            return std::unexpected(
-                std::format("Failed to hotplug device {}: {}", device_name_, hotplug_ret));
-        }
-
         auto port_res = dpdk::Device::find_by_name(device_name_);
         if (!port_res) {
             return std::unexpected(port_res.error());
@@ -54,7 +46,7 @@ public:
             return std::unexpected(configure_res.error());
         }
 
-        auto tx_setup_res = device_.setup_tx_queue(PCAP_EGRESS_QUEUE_ID);
+        auto tx_setup_res = device_.setup_tx_queue(queue_id_);
         if (!tx_setup_res) {
             return std::unexpected(tx_setup_res.error());
         }
@@ -64,14 +56,13 @@ public:
             return std::unexpected(start_res.error());
         }
 
-        queue_ = dpdk::CoreQueue{*port_res, PCAP_EGRESS_QUEUE_ID};
+        queue_ = dpdk::CoreQueue{*port_res, queue_id_};
 
         return {};
     }
 
     void shutdown() {
         device_.stop();
-        ::rte_eal_hotplug_remove(config::VDEV_BUS_NAME, device_name_.c_str());
     }
 
     std::span<dpdk::Packet> process(std::span<dpdk::Packet> packets) {
@@ -99,7 +90,7 @@ private:
     std::uint64_t sent_ = 0;
     std::uint64_t dropped_ = 0;
     std::string device_name_;
-    std::string vdev_args_;
+    std::uint16_t queue_id_ = 0;
     dpdk::Device device_;
     dpdk::CoreQueue queue_;
 };

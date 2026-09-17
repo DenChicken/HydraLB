@@ -14,6 +14,9 @@ constexpr std::int32_t ANY_SOCKET_ID = -1;
 
 constexpr const char* VDEV_BUS_NAME = "vdev";
 
+constexpr std::string_view PCAP_RX_ARG_KEY = "rx_pcap";
+constexpr std::string_view PCAP_TX_ARG_KEY = "tx_pcap";
+
 enum class BackendStatus : std::uint8_t { Dead, Alive };
 
 enum class PipelineMode : std::uint8_t { PcapPassthrough, PcapLoadBalancer };
@@ -33,52 +36,40 @@ struct alignas(64) RoutingTable {
 
 struct MempoolConfig {
     std::string name;
-    std::uint32_t num_elements = 0;
-    std::uint32_t cache_size = 0;
+    std::uint32_t elements = 0;
+    std::uint32_t cache = 0;
     std::int32_t socket_id = ANY_SOCKET_ID;
 };
 
-struct PcapIngressConfig {
-    std::string device_name;
-    std::string filename;
-    std::string mempool_name;
+struct DeviceConfig {
+    std::string name;
+    std::string args;
 };
 
-struct PcapEgressConfig {
-    std::string device_name;
-    std::string filename;
+struct QueueBinding {
+    std::string device;
+    std::uint16_t queue = 0;
 };
 
-struct Nodes {
-    PcapIngressConfig pcap_ingress;
-    PcapEgressConfig pcap_egress;
+struct WorkerConfig {
+    std::uint32_t lcore = 0;
+    PipelineMode mode = PipelineMode::PcapPassthrough;
+    std::string mempool;
+    QueueBinding rx;
+    QueueBinding tx;
 };
 
-struct Environment {
+struct StartupConfig {
     std::vector<std::string> eal_args;
-};
-
-struct Memory {
     std::vector<MempoolConfig> mempools;
+    std::vector<DeviceConfig> devices;
+    std::vector<WorkerConfig> workers;
 };
 
-struct Threading {
-    std::vector<std::uint32_t> worker_lcores;
-};
-
-struct Balancing {
+struct RuntimeConfig {
     std::vector<Backend> backends;
     network::IPv4Address local_tunnel_ip;
     std::uint32_t flow_hash_seed = 0;
-};
-
-struct AppConfig {
-    PipelineMode mode = PipelineMode::PcapPassthrough;
-    Environment environment;
-    Memory memory;
-    Threading threading;
-    Balancing balancing;
-    Nodes nodes;
 };
 
 }  // namespace hydralb::config
