@@ -1,6 +1,7 @@
 module;
 
 #include <rte_eal.h>
+#include <rte_errno.h>
 
 export module hydralb.dpdk:eal;
 
@@ -19,7 +20,7 @@ public:
 
         int ret = ::rte_eal_init(static_cast<int>(c_args.size()), c_args.data());
         if (ret < 0) {
-            return std::unexpected(std::format("EAL init failed with code: {}", ret));
+            return std::unexpected(std::format("EAL init failed: {}", ::rte_strerror(rte_errno)));
         }
 
         return {};

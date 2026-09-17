@@ -10,7 +10,9 @@ constexpr std::size_t MAX_BACKENDS = 256;
 
 constexpr std::size_t BURST_SIZE = 32;
 
-constexpr std::string_view VDEV_BUS_NAME = "vdev";
+constexpr std::int32_t ANY_SOCKET_ID = -1;
+
+constexpr const char* VDEV_BUS_NAME = "vdev";
 
 enum class BackendStatus : std::uint8_t { Dead, Alive };
 
@@ -19,8 +21,6 @@ enum class PipelineMode : std::uint8_t { PcapPassthrough, PcapLoadBalancer };
 struct Backend {
     std::uint32_t id = 0;
     network::IPv4Address ip;
-    std::uint16_t port = 0;
-    std::uint32_t weight = 0;
     BackendStatus status = BackendStatus::Dead;
 };
 
@@ -35,7 +35,7 @@ struct MempoolConfig {
     std::string name;
     std::uint32_t num_elements = 0;
     std::uint32_t cache_size = 0;
-    std::int32_t socket_id = -1;
+    std::int32_t socket_id = ANY_SOCKET_ID;
 };
 
 struct PcapIngressConfig {

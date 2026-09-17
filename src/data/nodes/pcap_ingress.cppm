@@ -26,16 +26,12 @@ class PcapIngressNode {
 public:
     PcapIngressNode(const config::PcapIngressConfig& config)
         : device_name_(config.device_name),
-          filename_(config.filename),
+          vdev_args_(std::format("{}={}", PCAP_INGRESS_RX_ARG_KEY, config.filename)),
           mempool_name_(config.mempool_name) {}
 
     std::expected<void, std::string> configure() {
-        const std::string vdev_args = std::format("{}={}", PCAP_INGRESS_RX_ARG_KEY, filename_);
-
-        int hotplug_ret = ::rte_eal_hotplug_add(
-            std::string(config::VDEV_BUS_NAME).c_str(),
-            device_name_.c_str(),
-            vdev_args.c_str());
+        int hotplug_ret =
+            ::rte_eal_hotplug_add(config::VDEV_BUS_NAME, device_name_.c_str(), vdev_args_.c_str());
 
         if (hotplug_ret < 0) {
             return std::unexpected(
@@ -79,7 +75,7 @@ public:
 
     void shutdown() {
         device_.stop();
-        ::rte_eal_hotplug_remove(std::string(config::VDEV_BUS_NAME).c_str(), device_name_.c_str());
+        ::rte_eal_hotplug_remove(config::VDEV_BUS_NAME, device_name_.c_str());
     }
 
     std::span<dpdk::Packet> process(std::span<dpdk::Packet> packets) {
@@ -91,7 +87,7 @@ public:
 
 private:
     std::string device_name_;
-    std::string filename_;
+    std::string vdev_args_;
     std::string mempool_name_;
     dpdk::Device device_;
     dpdk::CoreQueue queue_;

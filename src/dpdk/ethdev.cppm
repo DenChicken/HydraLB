@@ -1,5 +1,6 @@
 module;
 
+#include <rte_errno.h>
 #include <rte_ethdev.h>
 #include <rte_mbuf.h>
 
@@ -36,7 +37,8 @@ public:
         std::uint16_t port_id = 0;
         int ret = ::rte_eth_dev_get_port_by_name(name.c_str(), &port_id);
         if (ret < 0) {
-            return std::unexpected(std::format("Failed to resolve port by name {}: {}", name, ret));
+            return std::unexpected(
+                std::format("Failed to resolve port by name {}: {}", name, ::rte_strerror(-ret)));
         }
         return port_id;
     }
@@ -46,7 +48,8 @@ public:
 
         int ret = ::rte_eth_dev_configure(id_, config.rx_queues, config.tx_queues, &port_conf);
         if (ret < 0) {
-            return std::unexpected(std::format("Failed to configure eth device {}: {}", id_, ret));
+            return std::unexpected(
+                std::format("Failed to configure eth device {}: {}", id_, ::rte_strerror(-ret)));
         }
 
         rx_descriptors_ = config.rx_descriptors;
@@ -66,7 +69,11 @@ public:
 
         if (ret < 0) {
             return std::unexpected(
-                std::format("Failed to setup RX queue {} on port {}: {}", queue_id, id_, ret));
+                std::format(
+                    "Failed to setup RX queue {} on port {}: {}",
+                    queue_id,
+                    id_,
+                    ::rte_strerror(-ret)));
         }
 
         return {};
@@ -82,7 +89,11 @@ public:
 
         if (ret < 0) {
             return std::unexpected(
-                std::format("Failed to setup TX queue {} on port {}: {}", queue_id, id_, ret));
+                std::format(
+                    "Failed to setup TX queue {} on port {}: {}",
+                    queue_id,
+                    id_,
+                    ::rte_strerror(-ret)));
         }
 
         return {};
@@ -91,10 +102,18 @@ public:
     std::expected<void, std::string> start() {
         int ret = ::rte_eth_dev_start(id_);
         if (ret < 0) {
-            return std::unexpected(std::format("Failed to start eth device {}: {}", id_, ret));
+            return std::unexpected(
+                std::format("Failed to start eth device {}: {}", id_, ::rte_strerror(-ret)));
         }
 
-        ::rte_eth_promiscuous_enable(id_);
+        int promiscuous_ret = ::rte_eth_promiscuous_enable(id_);
+        if (promiscuous_ret < 0) {
+            return std::unexpected(
+                std::format(
+                    "Failed to enable promiscuous mode on port {}: {}",
+                    id_,
+                    ::rte_strerror(-promiscuous_ret)));
+        }
 
         return {};
     }

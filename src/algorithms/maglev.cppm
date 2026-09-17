@@ -26,12 +26,17 @@ std::uint64_t fnv1a_hash(const void* data, std::size_t size, std::uint64_t seed 
 class MaglevHasher {
 private:
     struct BackendPermutation {
-        std::uint32_t offset = 0;
+        std::uint32_t next_slot = 0;
         std::uint32_t skip = 0;
-        std::uint32_t next_index = 0;
     };
 
 public:
+    static std::uint32_t lookup(
+        std::uint32_t flow_hash,
+        const std::array<std::uint32_t, config::MAGLEV_TABLE_SIZE>& lookup_table) {
+        return lookup_table[flow_hash % config::MAGLEV_TABLE_SIZE];
+    }
+
     static void populate_table(
         std::span<const config::Backend> backends,
         std::size_t backend_count,
@@ -61,11 +66,10 @@ public:
             const std::uint64_t skip_hash =
                 fnv1a_hash(&backends[i].ip.address, sizeof(backends[i].ip.address), SKIP_SEED);
 
-            permutations[i].offset =
+            permutations[i].next_slot =
                 static_cast<std::uint32_t>(offset_hash % config::MAGLEV_TABLE_SIZE);
             permutations[i].skip =
                 static_cast<std::uint32_t>(skip_hash % (config::MAGLEV_TABLE_SIZE - 1) + 1);
-            permutations[i].next_index = 0;
         }
 
         std::fill(lookup_table.begin(), lookup_table.end(), LOOKUP_EMPTY_SLOT);
@@ -79,12 +83,10 @@ public:
                 }
 
                 while (true) {
-                    std::uint32_t candidate_slot =
-                        (permutations[i].offset +
-                         permutations[i].next_index * permutations[i].skip) %
-                        config::MAGLEV_TABLE_SIZE;
+                    const std::uint32_t candidate_slot = permutations[i].next_slot;
 
-                    permutations[i].next_index++;
+                    permutations[i].next_slot = static_cast<std::uint32_t>(
+                        (candidate_slot + permutations[i].skip) % config::MAGLEV_TABLE_SIZE);
 
                     if (lookup_table[candidate_slot] == LOOKUP_EMPTY_SLOT) {
                         lookup_table[candidate_slot] = static_cast<std::uint32_t>(i);

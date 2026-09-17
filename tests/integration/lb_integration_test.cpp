@@ -19,8 +19,6 @@ constexpr std::uint32_t LOCAL_TUNNEL_IP = 0x0A000001;
 constexpr std::uint32_t FLOW_HASH_SEED = 0x5BD1E995;
 
 constexpr std::uint32_t BACKEND_IP_BASE = 0x0A00000A;
-constexpr std::uint16_t BACKEND_PORT = 80;
-constexpr std::uint32_t BACKEND_WEIGHT = 1;
 constexpr std::size_t BACKEND_COUNT = 4;
 
 constexpr std::uint32_t CLIENT_IP = 0xC0A80101;
@@ -42,8 +40,6 @@ config::Balancing make_balancing() {
             config::Backend{
                 .id = static_cast<std::uint32_t>(i + 1),
                 .ip = {.address = BACKEND_IP_BASE + static_cast<std::uint32_t>(i)},
-                .port = BACKEND_PORT,
-                .weight = BACKEND_WEIGHT,
                 .status = config::BackendStatus::Alive});
     }
 

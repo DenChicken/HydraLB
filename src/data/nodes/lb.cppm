@@ -12,6 +12,7 @@ module;
 export module hydralb.data:lb;
 
 import :pipeline_node;
+import hydralb.algorithms.maglev;
 import hydralb.common.config;
 import hydralb.common.network;
 import hydralb.dpdk;
@@ -86,8 +87,8 @@ struct ParserStage {
 
         ParsedPacket parsed{};
         parsed.l2_len = hdr_lens.l2_len;
-        parsed.key.src_ip.address = ip_hdr->src_addr;
-        parsed.key.dst_ip.address = ip_hdr->dst_addr;
+        parsed.key.src_ip.address = rte_be_to_cpu_32(ip_hdr->src_addr);
+        parsed.key.dst_ip.address = rte_be_to_cpu_32(ip_hdr->dst_addr);
 
         const std::uint32_t l4_offset = hdr_lens.l2_len + hdr_lens.l3_len;
 
@@ -126,9 +127,9 @@ struct RouteStage {
             return std::unexpected(DropReason::RoutingTableNotReady);
         }
 
-        const std::uint32_t hash = ::rte_jhash(&key, sizeof(key), hash_seed);
+        const std::uint32_t flow_hash = ::rte_jhash(&key, sizeof(key), hash_seed);
         const std::uint32_t backend_index =
-            routing_table->lookup_table[hash % config::MAGLEV_TABLE_SIZE];
+            algorithms::MaglevHasher::lookup(flow_hash, routing_table->lookup_table);
 
         if (backend_index >= routing_table->backend_count) {
             return std::unexpected(DropReason::NoBackend);

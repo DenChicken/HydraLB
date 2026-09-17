@@ -1,5 +1,6 @@
 module;
 
+#include <rte_errno.h>
 #include <rte_launch.h>
 #include <rte_lcore.h>
 
@@ -120,19 +121,25 @@ public:
         }
 
         std::vector<WorkerContext> contexts(lcores.size());
+        std::expected<void, std::string> launch_result;
+
         for (std::size_t i = 0; i < lcores.size(); ++i) {
             contexts[i] = WorkerContext{&config, &routing_table};
 
             int launch_ret = ::rte_eal_remote_launch(worker_entry, &contexts[i], lcores[i]);
             if (launch_ret < 0) {
-                return std::unexpected(
-                    std::format("Failed to launch worker on lcore {}: {}", lcores[i], launch_ret));
+                launch_result = std::unexpected(
+                    std::format(
+                        "Failed to launch worker on lcore {}: {}",
+                        lcores[i],
+                        ::rte_strerror(-launch_ret)));
+                break;
             }
         }
 
         ::rte_eal_mp_wait_lcore();
 
-        return {};
+        return launch_result;
     }
 };
 

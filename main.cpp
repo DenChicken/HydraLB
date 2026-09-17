@@ -11,14 +11,11 @@ const std::string MBUF_POOL_NAME = "HYDRALB_MBUF_POOL";
 
 constexpr std::uint32_t MEMPOOL_ELEMENTS = 8191;
 constexpr std::uint32_t MEMPOOL_CACHE_SIZE = 256;
-constexpr std::int32_t MEMPOOL_SOCKET_ID = -1;
 
 constexpr std::uint32_t LOCAL_TUNNEL_IP = 0x0A000001;
 constexpr std::uint32_t FLOW_HASH_SEED = 0x5BD1E995;
 
 constexpr std::uint32_t BACKEND_IP_BASE = 0x0A00000A;
-constexpr std::uint16_t BACKEND_PORT = 80;
-constexpr std::uint32_t BACKEND_WEIGHT = 1;
 constexpr std::size_t BACKEND_COUNT = 4;
 
 constexpr std::uint32_t WORKER_LCORE = 1;
@@ -35,7 +32,7 @@ AppConfig make_app_config() {
             .name = MBUF_POOL_NAME,
             .num_elements = MEMPOOL_ELEMENTS,
             .cache_size = MEMPOOL_CACHE_SIZE,
-            .socket_id = MEMPOOL_SOCKET_ID,
+            .socket_id = ANY_SOCKET_ID,
         },
     };
 
@@ -49,8 +46,6 @@ AppConfig make_app_config() {
             Backend{
                 .id = static_cast<std::uint32_t>(i + 1),
                 .ip = {.address = BACKEND_IP_BASE + static_cast<std::uint32_t>(i)},
-                .port = BACKEND_PORT,
-                .weight = BACKEND_WEIGHT,
                 .status = BackendStatus::Alive});
     }
 

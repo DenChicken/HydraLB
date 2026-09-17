@@ -9,8 +9,6 @@ namespace {
 using namespace hydralb;
 
 constexpr std::uint32_t BACKEND_IP_BASE = 0x0A00000A;
-constexpr std::uint16_t BACKEND_PORT = 80;
-constexpr std::uint32_t BACKEND_WEIGHT = 1;
 
 constexpr std::size_t DEFAULT_BACKEND_COUNT = 4;
 
@@ -26,8 +24,6 @@ std::vector<config::Backend> make_backends(std::size_t count) {
         backends[i] = config::Backend{
             .id = static_cast<std::uint32_t>(i + 1),
             .ip = {.address = BACKEND_IP_BASE + static_cast<std::uint32_t>(i)},
-            .port = BACKEND_PORT,
-            .weight = BACKEND_WEIGHT,
             .status = config::BackendStatus::Alive};
     }
 

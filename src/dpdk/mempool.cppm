@@ -1,11 +1,18 @@
 module;
 
+#include <rte_errno.h>
 #include <rte_mbuf.h>
 #include <rte_mempool.h>
 
 export module hydralb.dpdk:mempool;
 
 import std;
+
+namespace hydralb::dpdk {
+
+constexpr std::uint16_t MEMPOOL_PRIV_SIZE = 0;
+
+}  // namespace hydralb::dpdk
 
 export namespace hydralb::dpdk {
 
@@ -28,15 +35,16 @@ public:
         std::int32_t socket_id = SOCKET_ID_ANY,
         std::uint16_t data_room_size = RTE_MBUF_DEFAULT_BUF_SIZE) {
         ::rte_mempool* pool = ::rte_pktmbuf_pool_create(
-            name.data(),
+            name.c_str(),
             num_elements,
             cache_size,
-            0,
+            MEMPOOL_PRIV_SIZE,
             data_room_size,
             socket_id);
 
         if (!pool) {
-            return std::unexpected(std::format("Failed to create mempool: {}", name));
+            return std::unexpected(
+                std::format("Failed to create mempool {}: {}", name, ::rte_strerror(rte_errno)));
         }
 
         return Mempool(pool);
