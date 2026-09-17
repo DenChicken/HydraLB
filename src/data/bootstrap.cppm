@@ -18,12 +18,6 @@ std::expected<void, std::string> validate_startup(const config::StartupConfig& s
 
     std::set<std::uint32_t> lcores;
     std::set<std::pair<std::string, std::uint16_t>> bindings;
-    std::set<std::string> used_devices;
-    std::set<std::string> used_mempools;
-
-    const auto known_device = [&startup](const std::string& name) {
-        return std::ranges::contains(startup.devices, name, &config::DeviceConfig::name);
-    };
 
     for (const auto& worker : startup.workers) {
         if (!lcores.insert(worker.lcore).second) {
@@ -40,10 +34,12 @@ std::expected<void, std::string> validate_startup(const config::StartupConfig& s
                     worker.lcore,
                     worker.mempool));
         }
-        used_mempools.insert(worker.mempool);
 
         for (const auto& binding : {worker.rx, worker.tx}) {
-            if (!known_device(binding.device)) {
+            if (!std::ranges::contains(
+                    startup.devices,
+                    binding.device,
+                    &config::DeviceConfig::name)) {
                 return std::unexpected(
                     std::format(
                         "Worker on lcore {} uses unknown device {}",
@@ -58,22 +54,29 @@ std::expected<void, std::string> validate_startup(const config::StartupConfig& s
                         binding.queue,
                         binding.device));
             }
-
-            used_devices.insert(binding.device);
         }
     }
 
-    for (const auto& device : startup.devices) {
-        if (!used_devices.contains(device.name)) {
-            return std::unexpected(std::format("Device {} is not used by any worker", device.name));
-        }
+    const auto device_used = [&startup](const config::DeviceConfig& device) {
+        return std::ranges::any_of(startup.workers, [&device](const auto& worker) {
+            return worker.rx.device == device.name || worker.tx.device == device.name;
+        });
+    };
+
+    const auto unused_device = std::ranges::find_if_not(startup.devices, device_used);
+    if (unused_device != startup.devices.end()) {
+        return std::unexpected(
+            std::format("Device {} is not used by any worker", unused_device->name));
     }
 
-    for (const auto& mempool : startup.mempools) {
-        if (!used_mempools.contains(mempool.name)) {
-            return std::unexpected(
-                std::format("Mempool {} is not used by any worker", mempool.name));
-        }
+    const auto mempool_used = [&startup](const config::MempoolConfig& mempool) {
+        return std::ranges::contains(startup.workers, mempool.name, &config::WorkerConfig::mempool);
+    };
+
+    const auto unused_mempool = std::ranges::find_if_not(startup.mempools, mempool_used);
+    if (unused_mempool != startup.mempools.end()) {
+        return std::unexpected(
+            std::format("Mempool {} is not used by any worker", unused_mempool->name));
     }
 
     return {};

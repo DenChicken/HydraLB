@@ -120,10 +120,9 @@ export namespace hydralb::data {
 class Dispatcher {
 public:
     static std::expected<void, std::string> run(
-        const config::StartupConfig& startup,
-        const config::RuntimeConfig& runtime,
+        const config::AppConfig& config,
         const config::RoutingTable& routing_table) {
-        const auto& workers = startup.workers;
+        const auto& workers = config.startup.workers;
         if (workers.empty()) {
             return std::unexpected("No workers configured");
         }
@@ -135,7 +134,7 @@ public:
         std::size_t launched = 0;
 
         for (std::size_t i = 0; i < workers.size(); ++i) {
-            contexts[i] = WorkerContext{&workers[i], &runtime, &routing_table, &stats[i], 0};
+            contexts[i] = WorkerContext{&workers[i], &config.runtime, &routing_table, &stats[i], 0};
 
             int launch_ret = ::rte_eal_remote_launch(worker_entry, &contexts[i], workers[i].lcore);
             if (launch_ret < 0) {
