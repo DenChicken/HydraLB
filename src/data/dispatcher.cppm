@@ -17,7 +17,6 @@ import std;
 
 namespace hydralb::data {
 
-constexpr std::size_t IDLE_BURSTS_BEFORE_STOP = 128;
 constexpr std::size_t SUPPORTED_WORKERS = 1;
 
 using PcapPassthroughPipeline = Pipeline<PcapIngressNode, PcapEgressNode>;
@@ -61,16 +60,12 @@ static void worker_loop(Pipeline pipeline, std::vector<NodeStats>& stats) {
         return;
     }
 
+    const auto& stop = dpdk::Signals::stop_flag();
+
     std::array<dpdk::Packet, config::BURST_SIZE> batch{};
 
-    std::size_t idle_bursts = 0;
-
-    while (idle_bursts < IDLE_BURSTS_BEFORE_STOP) {
-        if (pipeline.process(batch).empty()) {
-            ++idle_bursts;
-        } else {
-            idle_bursts = 0;
-        }
+    while (!stop.load(std::memory_order_relaxed)) {
+        pipeline.process(batch);
     }
 
     stats = pipeline.collect_stats();

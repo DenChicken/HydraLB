@@ -57,6 +57,7 @@ target_sources(hydralb_data
             src/dpdk/mempool.cppm
             src/dpdk/packet.cppm
             src/dpdk/ethdev.cppm
+            src/dpdk/signals.cppm
             src/dpdk/dpdk.cppm
             src/data/pipeline_node.cppm
             src/data/pipeline.cppm
